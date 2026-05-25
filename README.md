@@ -13,10 +13,11 @@ One Go binary. Zero config. Plays to any screen on your LAN.
 
 </div>
 
-<!-- Add screenshots here once you have them, e.g.:
-![Calendar](docs/calendar.png)
-![Torrents](docs/torrents.png)
--->
+<div align="center">
+
+<img src="img/calendarr.jpg" alt="Calendarr — calendar of upcoming, downloading, and watched episodes" width="900">
+
+</div>
 
 ## What is Calendarr?
 
