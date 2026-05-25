@@ -47,7 +47,7 @@ flowchart LR
     subgraph LAN["Your home LAN"]
         direction LR
         SRV["🖥️ server.exe<br/>:8787 · beacon :8786"]
-        WEB["🌐 Browser<br/>PC · phone · TV"]
+        WEB["🌐 Browser<br/>PC"]
         CLI["▶️ client.exe<br/>:8788 + MPC-BE"]
     end
 
