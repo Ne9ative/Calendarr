@@ -97,7 +97,7 @@ go build -ldflags "-H=windowsgui" -o client.exe ./client
 
 1. Copy **`server.exe`** to the machine that runs Sonarr and start it. With Sonarr (and optionally Radarr/Prowlarr) on the same box, it auto-detects everything.
 2. Open **`http://<server-machine>:8787`** in a browser — from any device on your LAN.
-3. **On each PC you want to watch on**, run **`client.exe`** (it lives in the tray). Every viewing machine needs its own copy — whether that's the server itself or a *different* PC on the network — because the browser hands playback to a helper running locally on that same machine. Then click ▶ and the episode opens in MPC-BE, streamed straight from the server.
+3. **On each PC you watch from** — typically a machine *other than* the server — run **`client.exe`** (it lives in the tray). The browser hands playback to a helper running locally, so whichever PC you press ▶ on needs its own copy. Then click ▶ and the episode opens in MPC-BE, streamed straight from the server.
 
 > **Browsing vs. playing.** *Any* device can open the calendar (phone, tablet, smart TV). But the ▶ button only works on a **Windows PC running `client.exe` + MPC-BE**, because the browser launches the player through a local helper. So you can browse from your phone, then hit play from a PC.
 
