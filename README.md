@@ -21,7 +21,7 @@ One Go binary. Zero config. Plays to any screen on your LAN.
 
 ## What is Calendarr?
 
-Calendarr turns your **Sonarr / Radarr / Prowlarr / qBittorrent** setup into one friendly web app — a **calendar of your episodes and movies** that you open from any browser on your network (PC, phone, TV) and **press ▶ to watch**.
+Calendarr turns your **Sonarr / Radarr / Prowlarr / qBittorrent** setup into one friendly web app — a **calendar of your episodes and movies** that you open from any browser on your network (PC only for now) and **press ▶ to watch**.
 
 Think of it as a lightweight, Plex-style front door for the *arr stack you already run, with **no VPS, no accounts, no port-forwarding, and no Node build step**. It's a single self-contained executable that reads Sonarr live, remembers what you've watched, and streams the file straight to your player.
 
