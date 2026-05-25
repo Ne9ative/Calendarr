@@ -4,11 +4,10 @@
 package main
 
 import (
-	"embed"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -32,10 +31,8 @@ import (
 	"calendarr-local/internal/radarr"
 	"calendarr-local/internal/sonarr"
 	"calendarr-local/internal/store"
+	"calendarr-local/web"
 )
-
-//go:embed web
-var webFS embed.FS
 
 //go:embed icon.ico
 var iconBytes []byte
@@ -248,8 +245,7 @@ func main() {
 		log.Printf("MODE DEV : web/ servi depuis le disque (%s)", webDir)
 		http.Handle("/", noCache(http.FileServer(http.Dir(webDir))))
 	} else {
-		sub, _ := fs.Sub(webFS, "web")
-		http.Handle("/", http.FileServer(http.FS(sub)))
+		http.Handle("/", http.FileServer(http.FS(web.FS)))
 	}
 	http.HandleFunc("/api/status", srv.handleStatus)
 	// Routes Sonarr : protégées par needSonarr → 503 propre si Sonarr absent

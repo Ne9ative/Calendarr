@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="Calendarr" width="440">
+<img src="docs/logo.png" alt="Calendarr" width="440">
 
 ### A self-hosted calendar &amp; remote for your *arr media stack
 
@@ -15,7 +15,7 @@ One Go binary. Zero config. Plays to any screen on your LAN.
 
 <div align="center">
 
-<img src="img/calendarr.jpg" alt="Calendarr — calendar of upcoming, downloading, and watched episodes" width="900">
+<img src="docs/calendarr.jpg" alt="Calendarr — calendar of upcoming, downloading, and watched episodes" width="900">
 
 </div>
 
@@ -86,10 +86,10 @@ git clone https://github.com/<you>/calendarr.git
 cd calendarr
 
 # the server — runs on the box with Sonarr
-go build -ldflags "-H=windowsgui" -o server.exe .
+go build -ldflags "-H=windowsgui" -o server.exe ./cmd/server
 
 # the playback helper — runs on each viewing machine
-go build -ldflags "-H=windowsgui" -o client.exe ./client
+go build -ldflags "-H=windowsgui" -o client.exe ./cmd/client
 ```
 
 `-H=windowsgui` makes the apps run silently in the system tray (no console window). Drop it while developing to keep a console, or run the server with `-notray -dev` to live-reload the `web/` UI without rebuilding.
