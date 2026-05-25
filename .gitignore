@@ -18,11 +18,3 @@ calendarr.db
 calendarr.db-shm
 calendarr.db-wal
 *.log
-
-# Local-only files
-/installer/
-/internal/installer/
-installer.zip
-favicon.zip
-code.html
-/temp/
