@@ -1,6 +1,6 @@
-// Package radarr parle à l'API locale de Radarr (films). Même principe que le
-// package sonarr : la clé API se lit dans le config.xml local (install indolore
-// quand on tourne sur la machine Radarr). Radarr n'écoute souvent que localhost.
+// Package radarr talks to the local Radarr API (movies). Same approach as the
+// sonarr package: the API key is read from the local config.xml (zero-config
+// install when running on the Radarr machine). Radarr often listens only on localhost.
 package radarr
 
 import (
@@ -68,7 +68,7 @@ func configPaths() []string {
 }
 
 func readLocalConfig() (string, string, error) {
-	var lastErr error = fmt.Errorf("config.xml Radarr introuvable")
+	var lastErr error = fmt.Errorf("Radarr config.xml not found")
 	for _, p := range configPaths() {
 		data, e := os.ReadFile(p)
 		if e != nil {
@@ -81,7 +81,7 @@ func readLocalConfig() (string, string, error) {
 			continue
 		}
 		if c.APIKey == "" {
-			lastErr = fmt.Errorf("ApiKey vide dans %s", p)
+			lastErr = fmt.Errorf("ApiKey empty in %s", p)
 			continue
 		}
 		port := c.Port
@@ -97,7 +97,7 @@ func readLocalConfig() (string, string, error) {
 	return "", "", lastErr
 }
 
-// Movie = sous-ensemble d'un film Radarr qui nous intéresse.
+// Movie is the subset of a Radarr movie that we care about.
 type Movie struct {
 	ID         int    `json:"id"`
 	Title      string `json:"title"`
@@ -130,7 +130,7 @@ func (m Movie) image(t string) string {
 
 func (m Movie) Poster() string { return m.image("poster") }
 
-// Banner : image large pour les cartes (les films ont surtout fanart).
+// Banner returns a wide image for cards (movies mainly have fanart).
 func (m Movie) Banner() string {
 	if u := m.image("fanart"); u != "" {
 		return u
@@ -170,7 +170,7 @@ func (c *Client) apiPost(path string, body any) ([]byte, error) {
 	return b, nil
 }
 
-// Library renvoie toute la bibliothèque de films.
+// Library returns the entire movie library.
 func (c *Client) Library() ([]Movie, error) {
 	b, err := c.apiGet("/api/v3/movie")
 	if err != nil {
@@ -183,7 +183,7 @@ func (c *Client) Library() ([]Movie, error) {
 	return ms, nil
 }
 
-// MovieFilePath renvoie le chemin du fichier d'un film (pour la lecture).
+// MovieFilePath returns the file path of a movie (for playback).
 func (c *Client) MovieFilePath(id int) (string, error) {
 	b, err := c.apiGet(fmt.Sprintf("/api/v3/movie/%d", id))
 	if err != nil {
@@ -194,7 +194,7 @@ func (c *Client) MovieFilePath(id int) (string, error) {
 		return "", err
 	}
 	if m.MovieFile.Path == "" {
-		return "", fmt.Errorf("aucun fichier pour le film %d", id)
+		return "", fmt.Errorf("no file for movie %d", id)
 	}
 	return m.MovieFile.Path, nil
 }
@@ -206,7 +206,7 @@ func (c *Client) QualityProfiles() ([]byte, error) { return c.apiGet("/api/v3/qu
 func (c *Client) Tags() ([]byte, error)            { return c.apiGet("/api/v3/tag") }
 func (c *Client) RootFolders() ([]byte, error)     { return c.apiGet("/api/v3/rootfolder") }
 
-// RootFolder = un dossier racine Radarr (là où les films sont importés).
+// RootFolder is a Radarr root folder (where movies are imported).
 type RootFolder struct {
 	Path string `json:"path"`
 }
@@ -218,13 +218,13 @@ func (c *Client) RootFolderPaths() ([]RootFolder, error) {
 	}
 	var r []RootFolder
 	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, fmt.Errorf("décodage rootfolder: %w", err)
+		return nil, fmt.Errorf("rootfolder decoding: %w", err)
 	}
 	return r, nil
 }
 
-// EnsureRootFolder ajoute un dossier racine s'il n'est pas déjà déclaré (sinon
-// Radarr refuse d'ajouter un film). Renvoie true si un dossier a été créé.
+// EnsureRootFolder adds a root folder if it isn't already declared (otherwise
+// Radarr refuses to add a movie). Returns true if a folder was created.
 func (c *Client) EnsureRootFolder(path string) (bool, error) {
 	norm := func(p string) string { return strings.ToLower(strings.TrimRight(p, `\/`)) }
 	if existing, err := c.RootFolderPaths(); err == nil {
@@ -240,8 +240,8 @@ func (c *Client) EnsureRootFolder(path string) (bool, error) {
 	return true, nil
 }
 
-// IndexerNames renvoie les noms des indexeurs configurés dans Radarr (ceux
-// poussés par Prowlarr s'appellent « <nom> (Prowlarr) »).
+// IndexerNames returns the names of the indexers configured in Radarr (those
+// pushed by Prowlarr are named "<name> (Prowlarr)").
 func (c *Client) IndexerNames() ([]string, error) {
 	b, err := c.apiGet("/api/v3/indexer")
 	if err != nil {
@@ -263,7 +263,7 @@ func (c *Client) CreateTag(label string) ([]byte, error) {
 	return c.apiPost("/api/v3/tag", map[string]any{"label": label})
 }
 
-// AddOptions = choix de l'utilisateur lors de l'ajout d'un film.
+// AddOptions holds the user's choices when adding a movie.
 type AddOptions struct {
 	QualityProfileID    int
 	RootFolderPath      string
@@ -283,7 +283,7 @@ func (c *Client) AddMovie(tmdbID int, o AddOptions) ([]byte, error) {
 		return nil, err
 	}
 	if len(arr) == 0 {
-		return nil, fmt.Errorf("film introuvable (tmdb %d)", tmdbID)
+		return nil, fmt.Errorf("movie not found (tmdb %d)", tmdbID)
 	}
 	m := arr[0]
 	m["qualityProfileId"] = o.QualityProfileID
@@ -301,7 +301,7 @@ func (c *Client) AddMovie(tmdbID int, o AddOptions) ([]byte, error) {
 	return c.apiPost("/api/v3/movie", m)
 }
 
-// Release = release de la recherche interactive (mêmes champs que Sonarr).
+// Release is a release from the interactive search (same fields as Sonarr).
 type Release struct {
 	GUID      string `json:"guid"`
 	Title     string `json:"title"`
@@ -326,12 +326,12 @@ func (c *Client) SearchReleases(movieID int) ([]Release, error) {
 	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("recherche release: %w", err)
+		return nil, fmt.Errorf("release search: %w", err)
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("recherche -> %s", resp.Status)
+		return nil, fmt.Errorf("search -> %s", resp.Status)
 	}
 	var rels []Release
 	if err := json.Unmarshal(b, &rels); err != nil {
@@ -345,8 +345,8 @@ func (c *Client) GrabRelease(guid string, indexerID int) error {
 	return err
 }
 
-// AddDownloadClient déclare qBittorrent comme client de téléchargement dans
-// Radarr (POST /api/v3/downloadclient). Idempotent par nom.
+// AddDownloadClient declares qBittorrent as a download client in Radarr
+// (POST /api/v3/downloadclient). Idempotent by name.
 func (c *Client) AddDownloadClient(name, host string, port int, username, password, category string) (bool, error) {
 	b, err := c.apiGet("/api/v3/downloadclient")
 	if err != nil {
@@ -374,7 +374,7 @@ func (c *Client) AddDownloadClient(name, host string, port int, username, passwo
 		}
 	}
 	if tpl == nil {
-		return false, fmt.Errorf("schéma QBittorrent introuvable dans Radarr")
+		return false, fmt.Errorf("QBittorrent schema not found in Radarr")
 	}
 
 	tpl["name"] = name

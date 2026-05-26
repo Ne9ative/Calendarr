@@ -9,10 +9,10 @@ import (
 	"calendarr-local/internal/discovery"
 )
 
-// openCalendar trouve le serveur tout seul et ouvre le calendrier dans le
-// navigateur. Best-effort, à lancer dans une goroutine au démarrage du helper.
-//  1. serveur sur CETTE machine (install mono) → localhost
-//  2. sinon, écoute le phare LAN d'un serveur ailleurs (install multi-PC)
+// openCalendar finds the server on its own and opens the calendar in the
+// browser. Best-effort, to be launched in a goroutine at helper startup.
+//  1. server on THIS machine (single-PC install) -> localhost
+//  2. otherwise, listen for the LAN beacon of a server elsewhere (multi-PC install)
 func openCalendar() {
 	if pingServer("http://127.0.0.1:8787/api/calendar") {
 		openBrowser("http://localhost:8787")
@@ -22,7 +22,7 @@ func openCalendar() {
 		openBrowser(url)
 		return
 	}
-	log.Printf("aucun serveur détecté sur le réseau (lance server.exe sur le PC qui a Sonarr)")
+	log.Printf("no server detected on the network (launch server.exe on the PC that has Sonarr)")
 }
 
 func pingServer(url string) bool {
@@ -36,6 +36,6 @@ func pingServer(url string) bool {
 }
 
 func openBrowser(url string) {
-	log.Printf("ouverture du calendrier dans le navigateur : %s", url)
+	log.Printf("opening the calendar in the browser: %s", url)
 	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }

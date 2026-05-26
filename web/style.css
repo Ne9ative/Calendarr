@@ -1,4 +1,4 @@
-/* Calendarr — thème sombre Material 3 (offline, sans CDN ni police externe). */
+/* Calendarr — Material 3 dark theme (offline, no CDN or external font). */
 :root {
     --background: #09090b;
     --surface: #09090b;
@@ -215,7 +215,7 @@ body {
 
 /* ---------- Calendar grid ---------- */
 .calendar {
-    /* Les jours sont désormais des cartes autonomes : plus de cadre « tableau ». */
+    /* Days are now standalone cards: no more "table" frame. */
 }
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 8px; row-gap: 8px; }
 .grid.slide-next { animation: monthSlideNext .28s ease; }
@@ -223,7 +223,7 @@ body {
 @keyframes monthSlideNext { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes monthSlidePrev { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
 
-/* Chaque jour = une carte (même disposition mois/semaine qu'avant). */
+/* Each day = one card (same month/week layout as before). */
 .cell {
     min-height: 150px; padding: 8px; container-type: inline-size; overflow: hidden;
     background: #0f0f12;
@@ -284,7 +284,7 @@ body {
     background: rgba(14, 14, 14, 0.72); color: var(--on-surface-variant);
     cursor: default; box-shadow: none;
 }
-/* Play / download — repris du dl.html : anneau « pulse-border » + flèche animée */
+/* Play / download — taken from dl.html: "pulse-border" ring + animated arrow */
 .action.play, .action.dl { font-size: clamp(12px, 10cqw, 28px); }
 .action.dl.paused { background: #3a4a78; }
 .action.dl.paused::before { display: none; }
@@ -313,7 +313,7 @@ body {
 }
 .bar { width: 0.68em; height: 0.12em; background: #fff; border-radius: 1px; margin-top: 0.12em; }
 @keyframes downloading { 0% { top: 0; opacity: 1; } 50% { top: 0.55em; opacity: 0; } 52% { top: -0.55em; opacity: 0; } 100% { top: 0; opacity: 1; } }
-/* État « import / déplacement » (Sonarr déplace le fichier après le 100 %) */
+/* "Importing / moving" state (Sonarr moves the file after reaching 100%) */
 .dl-spin { width: 0.95em; height: 0.95em; border-radius: 50%; border: 0.14em solid rgba(255, 255, 255, 0.35); border-top-color: #fff; animation: dlSpin 0.75s linear infinite; }
 .timer .icon.spin { animation: dlSpin 0.9s linear infinite; }
 @keyframes dlSpin { to { transform: rotate(360deg); } }
@@ -507,7 +507,7 @@ body {
 .seed-mid { color: #ffb786; }
 .seed-lo { color: var(--outline); }
 
-/* ---------- Recherche / ajout de série ---------- */
+/* ---------- Series search / add ---------- */
 .search-wrap { position: relative; }
 .search-results {
     position: absolute; top: calc(100% + 8px); right: 0; width: 400px; max-width: 80vw;
@@ -528,7 +528,7 @@ body {
 .search-sub { font-size: 12px; color: var(--on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .search-backdrop { position: fixed; inset: 0; z-index: 40; }
 
-/* ---------- Pages génériques ---------- */
+/* ---------- Generic pages ---------- */
 .page-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 60px 20px; color: var(--on-surface-variant); text-align: center; }
 .qbit-form { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
 .qbit-input { width: 200px; max-width: 70vw; height: 40px; padding: 0 12px; border-radius: var(--r); border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); color: var(--on-surface); font: inherit; font-size: 14px; }
@@ -575,13 +575,13 @@ body {
 .toggle-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left .15s; }
 .toggle.on .toggle-knob { left: 20px; }
 
-/* Pastilles de synchro Sonarr (S) / Radarr (R) par indexeur */
+/* Per-indexer Sonarr (S) / Radarr (R) sync chips */
 .d-apps { white-space: nowrap; }
 .app-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; font-size: 11px; font-weight: 700; background: var(--surface-c-highest); color: var(--outline); margin-right: 4px; }
 .app-badge.s.on { background: rgba(53, 197, 240, 0.20); color: #35c5f0; }
 .app-badge.r.on { background: rgba(255, 194, 48, 0.20); color: #ffc230; }
 
-/* ---------- Formulaire d'ajout de série ---------- */
+/* ---------- Series add form ---------- */
 .add-year { color: var(--on-surface-variant); font-weight: 400; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
@@ -596,12 +596,12 @@ body {
 .check-row input { width: 16px; height: 16px; }
 .muted { color: var(--on-surface-variant); font-size: 13px; }
 
-/* ---------- Recherche : badge type ---------- */
+/* ---------- Search: type badge ---------- */
 .type-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9999px; margin-right: 6px; text-transform: uppercase; letter-spacing: .03em; }
 .type-badge.series { background: rgba(77, 142, 255, 0.22); color: var(--primary); }
 .type-badge.movie { background: rgba(255, 183, 134, 0.22); color: var(--tertiary); }
 
-/* ---------- Films : grille ---------- */
+/* ---------- Movies: grid ---------- */
 .film-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
 .film-card { cursor: pointer; }
 .film-poster { position: relative; aspect-ratio: 2 / 3; border-radius: var(--r-lg); overflow: hidden; background: var(--surface-c-high); border: 1px solid rgba(66, 71, 84, 0.2); transition: border-color .15s; }
@@ -620,7 +620,7 @@ body {
 .film-year { font-size: 12px; color: var(--on-surface-variant); }
 .film-overview { font-size: 14px; color: var(--on-surface-variant); line-height: 1.5; margin-bottom: 16px; }
 
-/* ---------- Suppression / confirmation ---------- */
+/* ---------- Delete / confirmation ---------- */
 .month-nav .nav-danger { background: rgba(147, 0, 10, 0.25); color: var(--error); }
 .month-nav .nav-danger:hover { background: rgba(147, 0, 10, 0.4); }
 .btn-danger { background: #93000a; color: #fff; }
@@ -631,7 +631,7 @@ body {
 .confirm-body .check-row { margin-bottom: 8px; }
 .confirm-body .modal-actions { margin-top: 18px; }
 
-/* ---------- Prowlarr : connecter une app ---------- */
+/* ---------- Prowlarr: connect an app ---------- */
 .connect-pop { width: 300px; }
 .connect-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 8px; padding: 10px 12px; background: var(--surface-c-low); border: 1px solid var(--outline-variant); border-radius: var(--r); color: var(--on-surface); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: border-color .15s; }
 .connect-row:hover:not(:disabled) { border-color: var(--primary); }
@@ -639,7 +639,7 @@ body {
 .connect-cta { color: var(--primary); font-size: 12px; }
 .connect-ok { color: var(--secondary); font-size: 12px; }
 
-/* ---------- Catalogue d'indexeurs (Prowlarr) ---------- */
+/* ---------- Indexer catalog (Prowlarr) ---------- */
 .pick-modal { max-width: 520px; max-height: 80vh; }
 .pick-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; }
 .pick-head h2 { font-size: 18px; font-weight: 700; }

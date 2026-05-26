@@ -1,6 +1,6 @@
-// Package sonarr parle à l'API locale de Sonarr. Sur la machine qui héberge
-// Sonarr, on lit la clé API directement dans son config.xml : l'utilisateur n'a
-// donc rien à configurer (objectif "install indolore").
+// Package sonarr talks to the local Sonarr API. On the machine that hosts
+// Sonarr, we read the API key directly from its config.xml: the user has
+// nothing to configure (the "zero-config install" goal).
 package sonarr
 
 import (
@@ -17,21 +17,21 @@ import (
 	"time"
 )
 
-// Client interroge une instance Sonarr.
+// Client queries a Sonarr instance.
 type Client struct {
 	BaseURL string
 	APIKey  string
 	http    *http.Client
 }
 
-// New construit un client. Si baseURL ou apiKey sont vides, on tente de les
-// déduire du config.xml local de Sonarr (cas normal: l'agent tourne sur la
-// machine Sonarr). En dev, on passe des valeurs explicites (poste dev -> serveur).
+// New builds a client. If baseURL or apiKey are empty, we try to deduce them
+// from the local Sonarr config.xml (normal case: the agent runs on the Sonarr
+// machine). In dev, explicit values are passed (dev workstation -> server).
 func New(baseURL, apiKey string) (*Client, error) {
 	if baseURL == "" || apiKey == "" {
 		localURL, localKey, err := readLocalConfig()
 		if err != nil {
-			return nil, fmt.Errorf("Sonarr non détecté (renseigne sonarr_url + sonarr_api_key): %w", err)
+			return nil, fmt.Errorf("Sonarr not detected (set sonarr_url + sonarr_api_key): %w", err)
 		}
 		if baseURL == "" {
 			baseURL = localURL
@@ -53,7 +53,7 @@ type xmlConfig struct {
 	URLBase string `xml:"UrlBase"`
 }
 
-// configPaths liste les emplacements habituels du config.xml de Sonarr.
+// configPaths lists the usual locations of the Sonarr config.xml.
 func configPaths() []string {
 	var paths []string
 	if pd := os.Getenv("ProgramData"); pd != "" {
@@ -69,7 +69,7 @@ func configPaths() []string {
 }
 
 func readLocalConfig() (baseURL, apiKey string, err error) {
-	var lastErr error = fmt.Errorf("config.xml introuvable")
+	var lastErr error = fmt.Errorf("config.xml not found")
 	for _, p := range configPaths() {
 		data, e := os.ReadFile(p)
 		if e != nil {
@@ -82,7 +82,7 @@ func readLocalConfig() (baseURL, apiKey string, err error) {
 			continue
 		}
 		if c.APIKey == "" {
-			lastErr = fmt.Errorf("ApiKey vide dans %s", p)
+			lastErr = fmt.Errorf("ApiKey empty in %s", p)
 			continue
 		}
 		port := c.Port
@@ -98,12 +98,12 @@ func readLocalConfig() (baseURL, apiKey string, err error) {
 	return "", "", lastErr
 }
 
-// Episode = sous-ensemble d'un item du calendrier Sonarr qui nous intéresse.
+// Episode is the subset of a Sonarr calendar item that we care about.
 type Episode struct {
 	ID            int    `json:"id"`
 	SeasonNumber  int    `json:"seasonNumber"`
 	EpisodeNumber int    `json:"episodeNumber"`
-	FinaleType    string `json:"finaleType"` // "season" ou "series" si c'est une finale, sinon vide
+	FinaleType    string `json:"finaleType"` // "season" or "series" if it is a finale, otherwise empty
 	Title         string `json:"title"`
 	Overview      string `json:"overview"`
 	Runtime       int    `json:"runtime"`
@@ -133,7 +133,7 @@ type Episode struct {
 	} `json:"episodeFile"`
 }
 
-// Poster renvoie l'URL d'image la plus pertinente (poster si dispo, sinon 1re).
+// Poster returns the most relevant image URL (poster if available, otherwise the first).
 func (e Episode) Poster() string {
 	for _, img := range e.Series.Images {
 		if img.CoverType == "poster" {
@@ -146,8 +146,8 @@ func (e Episode) Poster() string {
 	return ""
 }
 
-// Banner renvoie une image large pour les cartes du calendrier (la bannière
-// Sonarr fait ~758x140, ratio idéal). Fallback: fanart, puis poster.
+// Banner returns a wide image for calendar cards (the Sonarr banner is
+// ~758x140, an ideal ratio). Fallback: fanart, then poster.
 func (e Episode) Banner() string {
 	var fanart, poster string
 	for _, img := range e.Series.Images {
@@ -166,11 +166,11 @@ func (e Episode) Banner() string {
 	return poster
 }
 
-// Calendar récupère les épisodes diffusés entre start et end.
+// Calendar retrieves the episodes airing between start and end.
 func (c *Client) Calendar(start, end time.Time) ([]Episode, error) {
 	u, err := url.Parse(c.BaseURL + "/api/v3/calendar")
 	if err != nil {
-		return nil, fmt.Errorf("URL Sonarr invalide: %w", err)
+		return nil, fmt.Errorf("invalid Sonarr URL: %w", err)
 	}
 	q := u.Query()
 	q.Set("start", start.UTC().Format("2006-01-02"))
@@ -184,17 +184,17 @@ func (c *Client) Calendar(start, end time.Time) ([]Episode, error) {
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("appel calendrier Sonarr: %w", err)
+		return nil, fmt.Errorf("Sonarr calendar call: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Sonarr a répondu %s", resp.Status)
+		return nil, fmt.Errorf("Sonarr responded %s", resp.Status)
 	}
 
 	var eps []Episode
 	if err := json.NewDecoder(resp.Body).Decode(&eps); err != nil {
-		return nil, fmt.Errorf("décodage calendrier: %w", err)
+		return nil, fmt.Errorf("calendar decoding: %w", err)
 	}
 	return eps, nil
 }
@@ -231,8 +231,8 @@ func (c *Client) apiPost(path string, body any) ([]byte, error) {
 	return b, nil
 }
 
-// EnsureWebhook crée (si absent) une notification Webhook dans Sonarr pointant
-// sur l'agent. Idempotent par nom. Renvoie true si une notif a été créée.
+// EnsureWebhook creates (if missing) a Webhook notification in Sonarr pointing
+// at the agent. Idempotent by name. Returns true if a notification was created.
 func (c *Client) EnsureWebhook(name, callbackURL string) (bool, error) {
 	b, err := c.apiGet("/api/v3/notification")
 	if err != nil {
@@ -261,11 +261,11 @@ func (c *Client) EnsureWebhook(name, callbackURL string) (bool, error) {
 		}
 	}
 	if tpl == nil {
-		return false, fmt.Errorf("schéma Webhook introuvable dans Sonarr")
+		return false, fmt.Errorf("Webhook schema not found in Sonarr")
 	}
 
 	tpl["name"] = name
-	// Active un trigger seulement s'il est supporté par cette version de Sonarr.
+	// Enable a trigger only if it is supported by this version of Sonarr.
 	setTrigger := func(trig, supports string) {
 		if v, _ := tpl[supports].(bool); v {
 			tpl[trig] = true
@@ -296,9 +296,9 @@ func (c *Client) EnsureWebhook(name, callbackURL string) (bool, error) {
 	return true, nil
 }
 
-// AddDownloadClient déclare qBittorrent comme client de téléchargement dans
-// Sonarr (POST /api/v3/downloadclient). Idempotent par nom. On part du schéma
-// fourni par Sonarr et on ne remplit que la connexion + la catégorie.
+// AddDownloadClient declares qBittorrent as a download client in Sonarr
+// (POST /api/v3/downloadclient). Idempotent by name. We start from the schema
+// provided by Sonarr and only fill in the connection plus the category.
 func (c *Client) AddDownloadClient(name, host string, port int, username, password, category string) (bool, error) {
 	b, err := c.apiGet("/api/v3/downloadclient")
 	if err != nil {
@@ -326,7 +326,7 @@ func (c *Client) AddDownloadClient(name, host string, port int, username, passwo
 		}
 	}
 	if tpl == nil {
-		return false, fmt.Errorf("schéma QBittorrent introuvable dans Sonarr")
+		return false, fmt.Errorf("QBittorrent schema not found in Sonarr")
 	}
 
 	tpl["name"] = name
@@ -355,8 +355,8 @@ func (c *Client) AddDownloadClient(name, host string, port int, username, passwo
 	return true, nil
 }
 
-// Release = une release renvoyée par la recherche interactive Sonarr
-// (GET /api/v3/release) : interroge tous les indexeurs configurés dans Sonarr.
+// Release is a release returned by Sonarr's interactive search
+// (GET /api/v3/release): queries all indexers configured in Sonarr.
 type Release struct {
 	GUID      string `json:"guid"`
 	Title     string `json:"title"`
@@ -377,53 +377,53 @@ type Release struct {
 	Rejections []string `json:"rejections"`
 }
 
-// SearchReleases lance une recherche interactive pour un épisode (peut prendre
-// plusieurs secondes : Sonarr interroge les indexeurs en direct).
+// SearchReleases runs an interactive search for an episode (may take several
+// seconds: Sonarr queries the indexers live).
 func (c *Client) SearchReleases(episodeID int) ([]Release, error) {
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v3/release?episodeId=%d", c.BaseURL, episodeID), nil)
 	req.Header.Set("X-Api-Key", c.APIKey)
 	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("recherche release: %w", err)
+		return nil, fmt.Errorf("release search: %w", err)
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("recherche -> %s", resp.Status)
+		return nil, fmt.Errorf("search -> %s", resp.Status)
 	}
 	var rels []Release
 	if err := json.Unmarshal(b, &rels); err != nil {
-		return nil, fmt.Errorf("décodage releases: %w", err)
+		return nil, fmt.Errorf("releases decoding: %w", err)
 	}
 	return rels, nil
 }
 
-// GrabRelease envoie une release au client de téléchargement via Sonarr
-// (POST /api/v3/release). Sonarr gère le download puis l'import dans la
-// bibliothèque ; la progression remonte ensuite via la file (queue).
+// GrabRelease sends a release to the download client via Sonarr
+// (POST /api/v3/release). Sonarr handles the download and then the import into
+// the library; progress is then reported via the queue.
 func (c *Client) GrabRelease(guid string, indexerID int) error {
 	_, err := c.apiPost("/api/v3/release", map[string]any{"guid": guid, "indexerId": indexerID})
 	return err
 }
 
-// RefreshDownloads force Sonarr à resynchroniser sa file avec le client de
-// téléchargement (qBittorrent) immédiatement, au lieu d'attendre son intervalle
-// interne (~60s). Sans ça, un téléchargement terminé côté qBit reste affiché
-// « en cours » dans la file Sonarr pendant près d'une minute.
+// RefreshDownloads forces Sonarr to resync its queue with the download client
+// (qBittorrent) immediately, instead of waiting for its internal interval
+// (~60s). Without this, a download completed on the qBit side keeps showing
+// "in progress" in the Sonarr queue for nearly a minute.
 func (c *Client) RefreshDownloads() error {
 	_, err := c.apiPost("/api/v3/command", map[string]any{"name": "RefreshMonitoredDownloads"})
 	return err
 }
 
-// --- Ajout de série ---
+// --- Add series ---
 
 func (c *Client) LookupSeries(term string) ([]byte, error) {
 	return c.apiGet("/api/v3/series/lookup?term=" + url.QueryEscape(term))
 }
 func (c *Client) QualityProfiles() ([]byte, error) { return c.apiGet("/api/v3/qualityprofile") }
 
-// Disk = espace d'un disque tel que rapporté par Sonarr (/api/v3/diskspace).
+// Disk is the space of a disk as reported by Sonarr (/api/v3/diskspace).
 type Disk struct {
 	Path       string `json:"path"`
 	Label      string `json:"label"`
@@ -438,12 +438,12 @@ func (c *Client) DiskSpace() ([]Disk, error) {
 	}
 	var d []Disk
 	if err := json.Unmarshal(b, &d); err != nil {
-		return nil, fmt.Errorf("décodage diskspace: %w", err)
+		return nil, fmt.Errorf("diskspace decoding: %w", err)
 	}
 	return d, nil
 }
 
-// RootFolder = un dossier racine Sonarr (là où les médias sont importés).
+// RootFolder is a Sonarr root folder (where media is imported).
 type RootFolder struct {
 	Path string `json:"path"`
 }
@@ -455,15 +455,15 @@ func (c *Client) RootFolderPaths() ([]RootFolder, error) {
 	}
 	var r []RootFolder
 	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, fmt.Errorf("décodage rootfolder: %w", err)
+		return nil, fmt.Errorf("rootfolder decoding: %w", err)
 	}
 	return r, nil
 }
 
-// EnsureRootFolder ajoute un dossier racine s'il n'est pas déjà déclaré (sinon
-// Sonarr refuse d'ajouter une série : « Root Folder Path ne doit pas être vide »).
-// Renvoie true si un dossier a été créé. Comparaison insensible à la casse et aux
-// slashs de fin (Windows).
+// EnsureRootFolder adds a root folder if it isn't already declared (otherwise
+// Sonarr refuses to add a series: "Root Folder Path must not be empty").
+// Returns true if a folder was created. Comparison is case-insensitive and
+// ignores trailing slashes (Windows).
 func (c *Client) EnsureRootFolder(path string) (bool, error) {
 	norm := func(p string) string { return strings.ToLower(strings.TrimRight(p, `\/`)) }
 	if existing, err := c.RootFolderPaths(); err == nil {
@@ -481,8 +481,8 @@ func (c *Client) EnsureRootFolder(path string) (bool, error) {
 func (c *Client) Tags() ([]byte, error)            { return c.apiGet("/api/v3/tag") }
 func (c *Client) RootFolders() ([]byte, error)     { return c.apiGet("/api/v3/rootfolder") }
 
-// IndexerNames renvoie les noms des indexeurs configurés dans Sonarr (ceux
-// poussés par Prowlarr s'appellent « <nom> (Prowlarr) »).
+// IndexerNames returns the names of the indexers configured in Sonarr (those
+// pushed by Prowlarr are named "<name> (Prowlarr)").
 func (c *Client) IndexerNames() ([]string, error) {
 	b, err := c.apiGet("/api/v3/indexer")
 	if err != nil {
@@ -504,7 +504,7 @@ func (c *Client) CreateTag(label string) ([]byte, error) {
 	return c.apiPost("/api/v3/tag", map[string]any{"label": label})
 }
 
-// AddOptions = choix de l'utilisateur lors de l'ajout d'une série.
+// AddOptions holds the user's choices when adding a series.
 type AddOptions struct {
 	QualityProfileID int
 	RootFolderPath   string
@@ -515,9 +515,9 @@ type AddOptions struct {
 	Tags             []int
 }
 
-// AddSeries ajoute une série. On relit l'objet complet via lookup (tvdb:ID)
-// pour récupérer ce que Sonarr attend (images, saisons…), puis on le complète
-// avec les choix de l'utilisateur avant le POST.
+// AddSeries adds a series. We re-fetch the full object via lookup (tvdb:ID)
+// to gather what Sonarr expects (images, seasons...), then complete it with
+// the user's choices before the POST.
 func (c *Client) AddSeries(tvdbID int, o AddOptions) ([]byte, error) {
 	b, err := c.apiGet(fmt.Sprintf("/api/v3/series/lookup?term=tvdb:%d", tvdbID))
 	if err != nil {
@@ -528,7 +528,7 @@ func (c *Client) AddSeries(tvdbID int, o AddOptions) ([]byte, error) {
 		return nil, err
 	}
 	if len(arr) == 0 {
-		return nil, fmt.Errorf("série introuvable (tvdb %d)", tvdbID)
+		return nil, fmt.Errorf("series not found (tvdb %d)", tvdbID)
 	}
 	s := arr[0]
 	s["qualityProfileId"] = o.QualityProfileID
@@ -551,7 +551,7 @@ func (c *Client) AddSeries(tvdbID int, o AddOptions) ([]byte, error) {
 	return c.apiPost("/api/v3/series", s)
 }
 
-// QueueItem = un téléchargement en cours, normalisé pour le push.
+// QueueItem is an in-progress download, normalized for pushing.
 type QueueItem struct {
 	EpisodeID int
 	Status    string
@@ -565,14 +565,14 @@ type queueRecord struct {
 	SizeLeft     float64 `json:"sizeleft"`
 	TimeLeft     string  `json:"timeleft"`
 	Status       string  `json:"status"`
-	TrackedState string  `json:"trackedDownloadState"` // downloading, importPending, importing, imported…
+	TrackedState string  `json:"trackedDownloadState"` // downloading, importPending, importing, imported...
 }
 
 type queueResponse struct {
 	Records []queueRecord `json:"records"`
 }
 
-// Queue récupère la file de téléchargement de Sonarr (qui reflète qBittorrent).
+// Queue retrieves Sonarr's download queue (which reflects qBittorrent).
 func (c *Client) Queue() ([]QueueItem, error) {
 	b, err := c.apiGet("/api/v3/queue?pageSize=200")
 	if err != nil {
@@ -583,18 +583,18 @@ func (c *Client) Queue() ([]QueueItem, error) {
 		return nil, err
 	}
 
-	// Un épisode peut avoir plusieurs entrées (ex: 4K en cours + 720p fini).
-	// On garde la plus "active" et on ignore les "completed" (qui deviendront
-	// "dispo" via le webhook d'import).
-	// norm normalise une entrée en (statut, rang). On garde l'entrée la plus
-	// avancée par épisode. "importing" = Sonarr déplace le fichier vers la
-	// bibliothèque (après le 100 %), on l'expose pour l'afficher dans le calendrier.
+	// An episode can have multiple entries (e.g. 4K in progress + 720p done).
+	// We keep the most "active" one and ignore the "completed" entries (which
+	// will become "available" via the import webhook).
+	// norm normalizes an entry into (status, rank). We keep the most advanced
+	// entry per episode. "importing" = Sonarr is moving the file into the
+	// library (after 100%); we expose it so it can be shown on the calendar.
 	norm := func(r queueRecord) (string, int) {
 		switch strings.ToLower(r.TrackedState) {
 		case "importing":
-			return "importing", 4 // Sonarr déplace activement le fichier vers la bibliothèque
+			return "importing", 4 // Sonarr is actively moving the file into the library
 		case "importpending", "importblocked":
-			return "pending", 4 // téléchargé, en attente d'import (parfois bloqué par Sonarr)
+			return "pending", 4 // downloaded, awaiting import (sometimes blocked by Sonarr)
 		}
 		switch strings.ToLower(r.Status) {
 		case "downloading":
@@ -603,7 +603,7 @@ func (c *Client) Queue() ([]QueueItem, error) {
 			return "queued", 2
 		case "paused":
 			return "paused", 1
-		default: // completed (déjà importé), warning, delay, failed…
+		default: // completed (already imported), warning, delay, failed...
 			return "", 0
 		}
 	}

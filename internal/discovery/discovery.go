@@ -1,8 +1,8 @@
-// Package discovery : découverte automatique du serveur sur le LAN. Le serveur
-// diffuse en continu un petit "phare" UDP en broadcast ; le client l'écoute pour
-// trouver l'adresse du calendrier sans aucune configuration (ni nom, ni IP à
-// taper). Objectif : l'hôte ouvre server.exe, un proche ouvre
-// client.exe sur un autre PC → le navigateur s'ouvre tout seul.
+// Package discovery handles automatic discovery of the server on the LAN.
+// The server continuously broadcasts a small UDP "beacon"; the client listens
+// for it to find the calendar address without any configuration (no name or
+// IP to type). Goal: the host opens server.exe, someone else opens client.exe
+// on another PC and the browser opens by itself.
 package discovery
 
 import (
@@ -12,20 +12,20 @@ import (
 	"time"
 )
 
-// Port UDP du phare et préfixe magique (pour ne pas confondre avec du trafic tiers).
+// UDP port of the beacon and magic prefix (to avoid confusion with third-party traffic).
 const (
 	Port  = 8786
 	Magic = "CALENDARR-LOCAL"
 )
 
-// Message construit le contenu du phare : "CALENDARR-LOCAL|<port http>|<nom pc>".
+// Message builds the beacon payload: "CALENDARR-LOCAL|<http port>|<pc name>".
 func Message(httpPort, host string) string {
 	return Magic + "|" + httpPort + "|" + host
 }
 
-// Listen écoute les phares pendant au plus timeout et renvoie l'URL HTTP du
-// premier serveur entendu (http://<ip source>:<port annoncé>). On utilise l'IP
-// source du paquet (toujours résoluble) plutôt que le nom : rien à configurer.
+// Listen listens for beacons for at most timeout and returns the HTTP URL of
+// the first server heard (http://<source ip>:<announced port>). We use the
+// source IP of the packet (always resolvable) rather than the name: nothing to configure.
 func Listen(timeout time.Duration) (string, bool) {
 	pc, err := net.ListenUDP("udp4", &net.UDPAddr{Port: Port})
 	if err != nil {
@@ -38,7 +38,7 @@ func Listen(timeout time.Duration) (string, bool) {
 	for {
 		n, src, err := pc.ReadFromUDP(buf)
 		if err != nil {
-			return "", false // délai dépassé : aucun serveur trouvé
+			return "", false // timeout elapsed: no server found
 		}
 		parts := strings.Split(string(buf[:n]), "|")
 		if len(parts) < 2 || parts[0] != Magic {
@@ -51,10 +51,10 @@ func Listen(timeout time.Duration) (string, bool) {
 	}
 }
 
-// BroadcastAddrs renvoie l'adresse de broadcast de chaque interface réseau
-// active (ex: 192.168.1.255, 172.23.63.255…). On émet le phare vers TOUTES,
-// sinon il ne sortirait que par l'interface par défaut (souvent un adaptateur
-// virtuel WSL/Hyper-V) et n'atteindrait jamais le vrai LAN.
+// BroadcastAddrs returns the broadcast address of each active network
+// interface (e.g. 192.168.1.255, 172.23.63.255...). We emit the beacon on
+// ALL of them, otherwise it would only leave via the default interface
+// (often a virtual WSL/Hyper-V adapter) and never reach the real LAN.
 func BroadcastAddrs() []net.IP {
 	var out []net.IP
 	ifaces, err := net.Interfaces()
@@ -77,7 +77,7 @@ func BroadcastAddrs() []net.IP {
 			}
 			mask := ipnet.Mask
 			if len(mask) == 16 {
-				mask = mask[12:] // masque IPv4 parfois stocké sur 16 octets
+				mask = mask[12:] // IPv4 mask is sometimes stored as 16 bytes
 			}
 			if len(mask) != 4 {
 				continue

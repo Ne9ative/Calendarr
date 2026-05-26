@@ -1,5 +1,5 @@
-// Package store = persistance locale (SQLite pur Go, sans CGO). Pour l'instant :
-// l'état "vu" des épisodes. Plus tard : réglages, cache.
+// Package store handles local persistence (pure-Go SQLite, no CGO). For now:
+// the "watched" state of episodes. Later: settings, cache.
 package store
 
 import (
@@ -28,7 +28,7 @@ func Open(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
-// WatchedSet renvoie l'ensemble des episode_id marqués vus.
+// WatchedSet returns the set of episode_id values marked as watched.
 func (s *Store) WatchedSet() (map[int]bool, error) {
 	rows, err := s.db.Query(`SELECT episode_id FROM watched`)
 	if err != nil {

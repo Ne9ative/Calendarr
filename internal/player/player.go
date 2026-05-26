@@ -1,4 +1,4 @@
-// Package player lance le lecteur vidéo local (MPC-BE) sur un fichier ou une URL.
+// Package player launches the local video player (MPC-BE) on a file or URL.
 package player
 
 import (
@@ -7,10 +7,10 @@ import (
 	"os/exec"
 )
 
-// ErrNotFound est renvoyé quand aucun exécutable MPC-BE n'a pu être localisé.
-var ErrNotFound = errors.New("MPC-BE introuvable")
+// ErrNotFound is returned when no MPC-BE executable could be located.
+var ErrNotFound = errors.New("MPC-BE not found")
 
-// candidates liste les emplacements d'install classiques de MPC-BE (64 puis 32 bits).
+// candidates lists the standard MPC-BE install locations (64-bit then 32-bit).
 var candidates = []string{
 	`C:\Program Files\MPC-BE\mpc-be64.exe`,
 	`C:\Program Files\MPC-BE x64\mpc-be64.exe`,
@@ -18,8 +18,8 @@ var candidates = []string{
 	`C:\Program Files (x86)\MPC-BE x86\mpc-be.exe`,
 }
 
-// FindMPCBE renvoie le chemin de l'exécutable MPC-BE. Si override pointe vers un
-// fichier existant, il est prioritaire ; sinon on teste les emplacements connus.
+// FindMPCBE returns the path to the MPC-BE executable. If override points to
+// an existing file, it takes priority; otherwise the known locations are tried.
 func FindMPCBE(override string) string {
 	if override != "" {
 		if exists(override) {
@@ -34,7 +34,7 @@ func FindMPCBE(override string) string {
 	return ""
 }
 
-// Play lance MPC-BE sur target (un chemin local ou une URL http) sans bloquer.
+// Play launches MPC-BE on target (a local path or an http URL) without blocking.
 func Play(mpcPath, target string) error {
 	if mpcPath == "" {
 		return ErrNotFound

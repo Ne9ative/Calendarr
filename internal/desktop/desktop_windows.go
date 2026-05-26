@@ -1,8 +1,8 @@
 //go:build windows
 
-// Package desktop = petits utilitaires Windows pour l'intégration bureau :
-// démarrage auto (clé Run du registre), ouverture du navigateur / d'un terminal,
-// et boîte de message d'erreur (utile quand l'app n'a pas de console).
+// Package desktop provides small Windows utilities for desktop integration:
+// auto-start (Run key in the registry), opening the browser or a terminal,
+// and an error message box (useful when the app has no console).
 package desktop
 
 import (
@@ -18,7 +18,7 @@ import (
 
 const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
 
-// AutoStartEnabled indique si l'app est lancée au démarrage de Windows.
+// AutoStartEnabled reports whether the app is launched at Windows startup.
 func AutoStartEnabled(name string) bool {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE)
 	if err != nil {
@@ -29,7 +29,7 @@ func AutoStartEnabled(name string) bool {
 	return err == nil
 }
 
-// SetAutoStart active/désactive le démarrage auto pour l'exécutable courant.
+// SetAutoStart enables or disables auto-start for the current executable.
 func SetAutoStart(name string, enabled bool) error {
 	exe := ""
 	if enabled {
@@ -42,8 +42,8 @@ func SetAutoStart(name string, enabled bool) error {
 	return SetAutoStartPath(name, exe, enabled)
 }
 
-// SetAutoStartPath active/désactive le démarrage auto pour un exe précis. Sert à
-// l'installeur, qui doit enregistrer server.exe et non lui-même.
+// SetAutoStartPath enables or disables auto-start for a specific exe. Used by
+// the installer, which needs to register server.exe rather than itself.
 func SetAutoStartPath(name, exePath string, enabled bool) error {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
 	if err != nil {
@@ -59,23 +59,23 @@ func SetAutoStartPath(name, exePath string, enabled bool) error {
 	return k.SetStringValue(name, `"`+exePath+`"`)
 }
 
-// OpenBrowser ouvre une URL dans le navigateur par défaut.
+// OpenBrowser opens a URL in the default browser.
 func OpenBrowser(url string) {
 	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }
 
-// OpenTerminal ouvre une fenêtre PowerShell qui suit le journal en direct. On
-// passe par un petit script temporaire (.ps1) plutôt qu'un -Command : c'est plus
-// robuste (pas de souci de guillemets) et la fenêtre affiche toujours un en-tête,
-// donc elle n'est jamais vide même si le journal est momentanément absent.
+// OpenTerminal opens a PowerShell window that tails the log live. We use a
+// small temporary script (.ps1) rather than a -Command: it is more robust (no
+// quoting issues) and the window always shows a header, so it is never empty
+// even if the log is momentarily missing.
 func OpenTerminal(logPath string) {
 	p := strings.ReplaceAll(logPath, "'", "''")
-	script := "$Host.UI.RawUI.WindowTitle = 'Calendarr - journal serveur'\n" +
+	script := "$Host.UI.RawUI.WindowTitle = 'Calendarr - server log'\n" +
 		"[Console]::OutputEncoding = [Text.Encoding]::UTF8\n" +
 		"$log = '" + p + "'\n" +
-		"Write-Host '=== Journal Calendarr (en direct, Ctrl+C pour fermer) ===' -ForegroundColor Cyan\n" +
+		"Write-Host '=== Calendarr log (live, Ctrl+C to close) ===' -ForegroundColor Cyan\n" +
 		"Write-Host $log -ForegroundColor DarkGray\n" +
-		"while (-not (Test-Path -LiteralPath $log)) { Write-Host 'En attente du journal...' -ForegroundColor Yellow; Start-Sleep -Seconds 1 }\n" +
+		"while (-not (Test-Path -LiteralPath $log)) { Write-Host 'Waiting for the log...' -ForegroundColor Yellow; Start-Sleep -Seconds 1 }\n" +
 		"Get-Content -LiteralPath $log -Tail 500 -Wait -Encoding UTF8\n"
 	tmp := filepath.Join(os.TempDir(), "calendarr-log.ps1")
 	if err := os.WriteFile(tmp, []byte(script), 0o644); err != nil {
@@ -86,7 +86,7 @@ func OpenTerminal(logPath string) {
 	_ = cmd.Start()
 }
 
-// MessageBox affiche une boîte d'erreur native (l'app n'ayant pas de console).
+// MessageBox displays a native error dialog (since the app has no console).
 func MessageBox(title, text string) {
 	proc := syscall.NewLazyDLL("user32.dll").NewProc("MessageBoxW")
 	t, _ := syscall.UTF16PtrFromString(text)

@@ -2,6 +2,6 @@
 
 package discovery
 
-// Broadcast : la découverte auto n'est pas gérée hors Windows (l'appli cible
-// Windows). Stub pour que la compilation passe sur les autres OS.
+// Broadcast: auto-discovery is not supported outside Windows (the app targets
+// Windows). Stub so that the build succeeds on other operating systems.
 func Broadcast(httpPort, host string) error { return nil }

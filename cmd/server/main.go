@@ -1,6 +1,6 @@
-// server : serveur tout-en-un (LAN). Lit Sonarr en direct, sert l'UI
-// calendrier + une API JSON + un WebSocket live, et persiste l'état "vu" en
-// SQLite. Pas de VPS, pas de framework lourd, un seul binaire.
+// server: all-in-one LAN server. Reads Sonarr live, serves the calendar UI
+// plus a JSON API and a live WebSocket, and persists the "watched" state in
+// SQLite. No VPS, no heavy framework, a single binary.
 package main
 
 import (
@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	_ "time/tzdata" // embarque la base des fuseaux (Windows n'en a pas toujours)
+	_ "time/tzdata" // embeds the timezone database (Windows does not always ship one)
 
 	"fyne.io/systray"
 	"github.com/gorilla/websocket"
@@ -37,9 +37,9 @@ import (
 //go:embed icon.ico
 var iconBytes []byte
 
-// config = réglages optionnels lus dans config.json (à côté de l'exe). Permet au
-// démarrage auto (qui lance l'exe SANS arguments) de connaître les identifiants
-// qBittorrent, etc. Précédence : argument en ligne de commande > config.json > défaut.
+// config holds optional settings read from config.json (next to the exe). Allows
+// auto-start (which launches the exe WITHOUT arguments) to know the qBittorrent
+// credentials, etc. Precedence: command-line argument > config.json > default.
 type config struct {
 	SonarrURL   string `json:"sonarrUrl"`
 	SonarrKey   string `json:"sonarrKey"`
@@ -52,8 +52,8 @@ type config struct {
 	RadarrKey   string `json:"radarrKey"`
 }
 
-// loadConfig lit config.json. S'il n'existe pas, écrit un modèle vide à remplir
-// (sans jamais toucher à un fichier existant).
+// loadConfig reads config.json. If it does not exist, writes an empty template
+// to fill in (without ever touching an existing file).
 func loadConfig(path string) config {
 	var cfg config
 	b, err := os.ReadFile(path)
@@ -89,37 +89,37 @@ type server struct {
 	pr  *prowlarr.Client
 	rd  *radarr.Client
 
-	shareURL  string // adresse d'accès LAN à montrer pour partager (http://NOM-PC:port)
-	sonarrWeb string // URL Sonarr joignable depuis le LAN (pour les liens vers la série)
-	radarrWeb string // URL Radarr joignable depuis le LAN (pour les liens vers le film)
+	shareURL  string // LAN access address to display for sharing (http://PC-NAME:port)
+	sonarrWeb string // Sonarr URL reachable from the LAN (for series links)
+	radarrWeb string // Radarr URL reachable from the LAN (for movie links)
 
-	qbitDet qbit.Detection // ce qu'on a détecté de l'install qBittorrent locale
-	qbitURL string         // URL qBittorrent effectivement utilisée
-	cfgPath string         // chemin de config.json (pour mémoriser le mot de passe qBit)
+	qbitDet qbit.Detection // what we detected about the local qBittorrent install
+	qbitURL string         // qBittorrent URL actually in use
+	cfgPath string         // path to config.json (for storing the qBit password)
 
 	mu    sync.Mutex
-	queue map[int]queueProg // episodeId -> progression du DL en cours
+	queue map[int]queueProg // episodeId -> progress of the active download
 }
 
 func main() {
-	addr := flag.String("addr", ":8787", "adresse d'écoute HTTP")
-	sonarrURL := flag.String("sonarr-url", "", "URL Sonarr (vide = auto-détection via config.xml)")
-	sonarrKey := flag.String("sonarr-key", "", "clé API Sonarr (vide = auto-détection)")
-	dbPath := flag.String("db", "", "chemin du fichier SQLite (défaut: à côté de l'exe)")
-	qbitURL := flag.String("qbit-url", "", "URL du WebUI qBittorrent (vide = auto-détection via qBittorrent.ini)")
-	qbitUser := flag.String("qbit-user", "", "utilisateur qBittorrent (vide = auto-détection)")
-	qbitPass := flag.String("qbit-pass", "", "mot de passe qBittorrent")
-	prowlarrURL := flag.String("prowlarr-url", "", "URL Prowlarr (vide = auto-détection via config.xml)")
-	prowlarrKey := flag.String("prowlarr-key", "", "clé API Prowlarr (vide = auto-détection)")
-	radarrURL := flag.String("radarr-url", "", "URL Radarr (vide = auto-détection via config.xml)")
-	radarrKey := flag.String("radarr-key", "", "clé API Radarr (vide = auto-détection)")
-	notray := flag.Bool("notray", false, "ne pas créer d'icône dans la zone de notification (dev/preview)")
-	dev := flag.Bool("dev", false, "servir web/ depuis le disque (rechargement à chaud du design, sans rebuild)")
-	open := flag.Bool("open", false, "ouvrir l'interface dans le navigateur (utilisé par le raccourci bureau)")
+	addr := flag.String("addr", ":8787", "HTTP listen address")
+	sonarrURL := flag.String("sonarr-url", "", "Sonarr URL (empty = auto-detect via config.xml)")
+	sonarrKey := flag.String("sonarr-key", "", "Sonarr API key (empty = auto-detect)")
+	dbPath := flag.String("db", "", "path to the SQLite file (default: next to the exe)")
+	qbitURL := flag.String("qbit-url", "", "qBittorrent WebUI URL (empty = auto-detect via qBittorrent.ini)")
+	qbitUser := flag.String("qbit-user", "", "qBittorrent username (empty = auto-detect)")
+	qbitPass := flag.String("qbit-pass", "", "qBittorrent password")
+	prowlarrURL := flag.String("prowlarr-url", "", "Prowlarr URL (empty = auto-detect via config.xml)")
+	prowlarrKey := flag.String("prowlarr-key", "", "Prowlarr API key (empty = auto-detect)")
+	radarrURL := flag.String("radarr-url", "", "Radarr URL (empty = auto-detect via config.xml)")
+	radarrKey := flag.String("radarr-key", "", "Radarr API key (empty = auto-detect)")
+	notray := flag.Bool("notray", false, "do not create a notification-area icon (dev/preview)")
+	dev := flag.Bool("dev", false, "serve web/ from disk (hot-reload the design without rebuilding)")
+	open := flag.Bool("open", false, "open the interface in the browser (used by the desktop shortcut)")
 	flag.Parse()
 
-	// Pas de console (build -H=windowsgui) → on journalise dans un fichier à côté
-	// de l'exe, consultable via « Ouvrir le terminal » dans le menu du tray.
+	// No console (build -H=windowsgui), so we log to a file next to the exe,
+	// viewable via "Open terminal" in the tray menu.
 	exePath, _ := os.Executable()
 	logPath := filepath.Join(filepath.Dir(exePath), "server.log")
 	if lf, e := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644); e == nil {
@@ -130,7 +130,7 @@ func main() {
 	cfg := loadConfig(cfgPath)
 	flagSet := map[string]bool{}
 	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
-	// pick : argument explicite > valeur de config.json > défaut du flag.
+	// pick: explicit argument > value from config.json > flag default.
 	pick := func(name, flagVal, cfgVal string) string {
 		if flagSet[name] {
 			return flagVal
@@ -148,45 +148,45 @@ func main() {
 
 	sc, err := sonarr.New(pick("sonarr-url", *sonarrURL, cfg.SonarrURL), pick("sonarr-key", *sonarrKey, cfg.SonarrKey))
 	if err != nil {
-		log.Printf("Sonarr non détecté (page Calendrier indisponible): %v", err)
+		log.Printf("Sonarr not detected (Calendar page unavailable): %v", err)
 		sc = nil
 	} else {
-		log.Printf("Sonarr détecté: %s", sc.BaseURL)
+		log.Printf("Sonarr detected: %s", sc.BaseURL)
 	}
 
 	dbFile := *dbPath
 	if dbFile == "" {
 		dbFile = filepath.Join(filepath.Dir(exePath), "calendarr.db")
 	}
-	// On n'écrase JAMAIS une base existante : store.Open l'ouvre telle quelle
-	// (CREATE TABLE IF NOT EXISTS), les données "vu" sont préservées.
+	// We NEVER overwrite an existing database: store.Open opens it as-is
+	// (CREATE TABLE IF NOT EXISTS), the "watched" data is preserved.
 	if _, e := os.Stat(dbFile); e == nil {
-		log.Printf("Base existante réutilisée (non remplacée): %s", dbFile)
+		log.Printf("Existing database reused (not replaced): %s", dbFile)
 	} else {
-		log.Printf("Nouvelle base créée: %s", dbFile)
+		log.Printf("New database created: %s", dbFile)
 	}
 	st, err := store.Open(dbFile)
 	if err != nil {
-		fatal("Base SQLite : " + err.Error())
+		fatal("SQLite database: " + err.Error())
 	}
 	defer st.Close()
 
 	qbitDet := qbit.Detect()
 	qbitURLv := pick("qbit-url", *qbitURL, cfg.QbitURL)
 	if qbitURLv == "" {
-		qbitURLv = qbitDet.URL // port WebUI lu dans qBittorrent.ini (8080 par défaut)
+		qbitURLv = qbitDet.URL // WebUI port read from qBittorrent.ini (8080 by default)
 	}
 	qbitUserv := pick("qbit-user", *qbitUser, cfg.QbitUser)
 	if qbitUserv == "" {
 		qbitUserv = qbitDet.Username
 	}
 	qb := qbit.New(qbitURLv, qbitUserv, pick("qbit-pass", *qbitPass, cfg.QbitPass))
-	log.Printf("qBittorrent: %s (installé=%v, WebUI=%v)", qbitURLv, qbitDet.Installed, qbitDet.WebUIEnabled)
-	go func() { _ = qb.Authenticate() }() // établit la session une fois, sans bloquer le démarrage
+	log.Printf("qBittorrent: %s (installed=%v, WebUI=%v)", qbitURLv, qbitDet.Installed, qbitDet.WebUIEnabled)
+	go func() { _ = qb.Authenticate() }() // establish the session once, without blocking startup
 
 	pr, err := prowlarr.New(pick("prowlarr-url", *prowlarrURL, cfg.ProwlarrURL), pick("prowlarr-key", *prowlarrKey, cfg.ProwlarrKey))
 	if err != nil {
-		log.Printf("Prowlarr non détecté (page Prowlarr indisponible): %v", err)
+		log.Printf("Prowlarr not detected (Prowlarr page unavailable): %v", err)
 		pr = nil
 	} else {
 		log.Printf("Prowlarr: %s", pr.BaseURL)
@@ -194,15 +194,15 @@ func main() {
 
 	rd, err := radarr.New(pick("radarr-url", *radarrURL, cfg.RadarrURL), pick("radarr-key", *radarrKey, cfg.RadarrKey))
 	if err != nil {
-		log.Printf("Radarr non détecté (page Films indisponible): %v", err)
+		log.Printf("Radarr not detected (Movies page unavailable): %v", err)
 		rd = nil
 	} else {
 		log.Printf("Radarr: %s", rd.BaseURL)
 	}
 
-	// Adresse de partage : le nom Windows du PC (déjà attribué par l'OS) + le
-	// port. Sur un LAN, les autres machines résolvent ce nom tout seules
-	// (NetBIOS/mDNS) → l'hôte n'a rien à configurer, juste à donner cette ligne.
+	// Share address: the Windows PC name (already assigned by the OS) plus the
+	// port. On a LAN, other machines resolve this name on their own
+	// (NetBIOS/mDNS), so the host has nothing to configure, just to share this line.
 	hostName, _ := os.Hostname()
 	_, port, _ := net.SplitHostPort(*addr)
 	if port == "" {
@@ -213,9 +213,9 @@ func main() {
 		shareURL = "http://" + hostName + ":" + port
 	}
 
-	// URL Sonarr joignable depuis les autres appareils : si Sonarr est auto-
-	// détecté il pointe sur localhost ; on remplace par le nom du PC (Sonarr
-	// tourne sur la même machine que ce serveur).
+	// Sonarr URL reachable from other devices: if Sonarr was auto-detected it
+	// points to localhost; we replace it with the PC name (Sonarr runs on the
+	// same machine as this server).
 	sonarrWeb := ""
 	if sc != nil {
 		sonarrWeb = sc.BaseURL
@@ -236,21 +236,21 @@ func main() {
 	srv := &server{sc: sc, st: st, loc: loc, hub: newHub(), qb: qb, pr: pr, rd: rd, queue: map[int]queueProg{}, shareURL: shareURL, sonarrWeb: sonarrWeb, radarrWeb: radarrWeb, qbitDet: qbitDet, qbitURL: qbitURLv, cfgPath: cfgPath}
 
 	if *dev {
-		// Mode design : on sert le dossier web/ tel quel depuis le disque.
-		// Éditer un fichier puis rafraîchir le navigateur suffit — aucun rebuild,
-		// aucun renvoi de l'exe sur le serveur. Chemin résolu à côté de l'exe
-		// (indépendant du dossier de lancement). noCache évite que le navigateur
-		// garde une vieille version du CSS/JS entre deux rafraîchissements.
+		// Design mode: serve the web/ folder as-is from disk.
+		// Editing a file then refreshing the browser is enough — no rebuild,
+		// no need to redeploy the exe to the server. Path resolved next to the exe
+		// (independent of the launch folder). noCache prevents the browser from
+		// keeping a stale CSS/JS version between refreshes.
 		webDir := filepath.Join(filepath.Dir(exePath), "web")
-		log.Printf("MODE DEV : web/ servi depuis le disque (%s)", webDir)
+		log.Printf("DEV MODE: web/ served from disk (%s)", webDir)
 		http.Handle("/", noCache(http.FileServer(http.Dir(webDir))))
 	} else {
 		http.Handle("/", http.FileServer(http.FS(web.FS)))
 	}
 	http.HandleFunc("/api/status", srv.handleStatus)
-	// Routes Sonarr : protégées par needSonarr → 503 propre si Sonarr absent
-	// (au lieu d'un crash). L'UI s'appuie sur /api/status pour afficher un
-	// message « Sonarr non installé » plutôt que d'appeler ces routes.
+	// Sonarr routes: guarded by needSonarr, returning a clean 503 if Sonarr is
+	// absent (instead of crashing). The UI relies on /api/status to display a
+	// "Sonarr not installed" message rather than calling these routes.
 	http.HandleFunc("/api/calendar", srv.needSonarr(srv.handleCalendar))
 	http.HandleFunc("/api/diskspace", srv.needSonarr(srv.handleDiskSpace))
 	http.HandleFunc("/api/watched", srv.handleWatched)
@@ -282,53 +282,53 @@ func main() {
 	http.HandleFunc("/play/file", srv.needSonarr(srv.handlePlayFile))
 	http.HandleFunc("GET /play/{episodeId}/{name}", srv.needSonarr(srv.handlePlay))
 
-	// Tâches de fond liées à Sonarr : inutiles (et qui crasheraient) sans lui.
+	// Background tasks tied to Sonarr: useless (and would crash) without it.
 	if sc != nil {
 		go srv.pollQueue()
 		go srv.registerWebhook(*addr)
 	}
 	go func() {
-		// Phare LAN en continu : permet à client.exe (autre PC) de
-		// trouver ce serveur tout seul et d'ouvrir le calendrier.
+		// Continuous LAN beacon: lets client.exe (on another PC) find this
+		// server on its own and open the calendar.
 		if err := discovery.Broadcast(port, hostName); err != nil {
-			log.Printf("découverte LAN désactivée: %v", err)
+			log.Printf("LAN discovery disabled: %v", err)
 		}
 	}()
 
-	// On réserve le port nous-mêmes pour détecter une instance déjà lancée. Si le
-	// port est pris (serveur déjà en service via le démarrage auto), on n'affiche
-	// pas d'erreur : on ouvre l'UI si demandé (raccourci bureau) puis on sort —
-	// pas de second processus, pas de plantage.
+	// We reserve the port ourselves to detect an already-running instance. If
+	// the port is taken (server already running via auto-start), we don't show
+	// an error: we open the UI if requested (desktop shortcut) then exit — no
+	// second process, no crash.
 	ln, err := net.Listen("tcp", *addr)
 	if err != nil {
 		if *open {
 			desktop.OpenBrowser("http://localhost:" + port)
 		}
-		log.Printf("déjà en service sur %s — rien à faire", *addr)
+		log.Printf("already running on %s — nothing to do", *addr)
 		return
 	}
 	go func() {
 		if err := http.Serve(ln, nil); err != nil {
-			fatal("Serveur HTTP : " + err.Error())
+			fatal("HTTP server: " + err.Error())
 		}
 	}()
 
-	log.Printf("server prêt : http://localhost%s", *addr)
+	log.Printf("server ready: http://localhost%s", *addr)
 	if shareURL != "" {
-		log.Printf("Partage LAN (à donner aux autres) : %s", shareURL)
+		log.Printf("LAN share (give this to others): %s", shareURL)
 	}
 	if *open {
 		desktop.OpenBrowser("http://localhost:" + port)
 	}
 
 	if *notray {
-		select {} // mode dev/preview : pas d'icône, on bloque ici
+		select {} // dev/preview mode: no icon, block here
 	}
 	runTray(logPath, port)
 }
 
-// noCache désactive le cache navigateur (mode -dev uniquement) pour que chaque
-// rafraîchissement reflète la dernière version du design sur le disque.
+// noCache disables browser caching (-dev mode only) so every refresh reflects
+// the latest design version on disk.
 func noCache(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -336,28 +336,28 @@ func noCache(h http.Handler) http.Handler {
 	})
 }
 
-// fatal journalise, montre une boîte d'erreur (pas de console) et quitte.
+// fatal logs the error, shows an error dialog (no console), and exits.
 func fatal(msg string) {
 	log.Print(msg)
-	desktop.MessageBox("Calendarr — erreur", msg)
+	desktop.MessageBox("Calendarr — error", msg)
 	os.Exit(1)
 }
 
-// runTray installe l'icône dans la zone de notification. Clic gauche = ouvrir le
-// calendrier dans le navigateur ; clic droit = menu (démarrage auto, terminal, fermer).
+// runTray installs the system-tray icon. Left-click opens the calendar in the
+// browser; right-click shows the menu (auto-start, terminal, close).
 func runTray(logPath, port string) {
 	const appName = "CalendarrServer"
 	onReady := func() {
 		systray.SetIcon(iconBytes)
-		systray.SetTooltip("Calendarr — serveur (clic pour ouvrir le calendrier)")
-		// Clic gauche = ouvrir l'UI locale (comme client.exe). On ne définit pas
-		// SetOnSecondaryTapped → le clic droit garde le menu par défaut.
+		systray.SetTooltip("Calendarr — server (click to open the calendar)")
+		// Left-click opens the local UI (like client.exe). We do not set
+		// SetOnSecondaryTapped, so right-click keeps the default menu.
 		systray.SetOnTapped(func() { desktop.OpenBrowser("http://localhost:" + port) })
 
-		mAuto := systray.AddMenuItemCheckbox("Démarrer avec Windows", "Lancer automatiquement à l'ouverture de Windows", desktop.AutoStartEnabled(appName))
-		mTerm := systray.AddMenuItem("Ouvrir le terminal", "Afficher le journal du serveur en direct")
+		mAuto := systray.AddMenuItemCheckbox("Start with Windows", "Launch automatically when Windows starts", desktop.AutoStartEnabled(appName))
+		mTerm := systray.AddMenuItem("Open terminal", "Show the live server log")
 		systray.AddSeparator()
-		mQuit := systray.AddMenuItem("Fermer", "Arrêter le serveur Calendarr")
+		mQuit := systray.AddMenuItem("Quit", "Stop the Calendarr server")
 
 		go func() {
 			for {
@@ -365,7 +365,7 @@ func runTray(logPath, port string) {
 				case <-mAuto.ClickedCh:
 					enable := !mAuto.Checked()
 					if err := desktop.SetAutoStart(appName, enable); err != nil {
-						desktop.MessageBox("Calendarr", "Démarrage auto : "+err.Error())
+						desktop.MessageBox("Calendarr", "Auto-start: "+err.Error())
 						continue
 					}
 					if enable {
@@ -385,22 +385,22 @@ func runTray(logPath, port string) {
 	systray.Run(onReady, func() { os.Exit(0) })
 }
 
-// needSonarr enveloppe un handler qui dépend de Sonarr : si Sonarr n'a pas été
-// détecté, il répond 503 proprement au lieu de déréférencer un client nil.
+// needSonarr wraps a handler that depends on Sonarr: if Sonarr was not
+// detected, it responds with a clean 503 instead of dereferencing a nil client.
 func (s *server) needSonarr(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.sc == nil {
-			http.Error(w, "Sonarr non configuré", http.StatusServiceUnavailable)
+			http.Error(w, "Sonarr not configured", http.StatusServiceUnavailable)
 			return
 		}
 		h(w, r)
 	}
 }
 
-// handleStatus indique quels services sont disponibles, pour que l'UI affiche un
-// message « X non installé » sur la page concernée au lieu d'appeler une API qui
-// échouerait. (qBittorrent est géré directement par la page Torrents via
-// /api/torrents, qui distingue déjà « injoignable » de « aucun torrent ».)
+// handleStatus reports which services are available so the UI can display an
+// "X not installed" message on the affected page instead of calling an API that
+// would fail. (qBittorrent is handled directly by the Torrents page via
+// /api/torrents, which already distinguishes "unreachable" from "no torrents".)
 func (s *server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{
 		"sonarr":   s.sc != nil,
@@ -511,7 +511,7 @@ func (s *server) handleCalendar(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleWatched(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
@@ -519,7 +519,7 @@ func (s *server) handleWatched(w http.ResponseWriter, r *http.Request) {
 		Watched   bool `json:"watched"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "JSON invalide", http.StatusBadRequest)
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 	if err := s.st.SetWatched(body.EpisodeID, body.Watched); err != nil {
@@ -529,8 +529,8 @@ func (s *server) handleWatched(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// handleDiskSpace renvoie l'espace libre/total du disque contenant le dossier
-// racine configuré dans Sonarr (la destination des téléchargements importés).
+// handleDiskSpace returns the free/total space of the disk containing the
+// root folder configured in Sonarr (the destination of imported downloads).
 func (s *server) handleDiskSpace(w http.ResponseWriter, r *http.Request) {
 	disks, err := s.sc.DiskSpace()
 	if err != nil {
@@ -543,7 +543,7 @@ func (s *server) handleDiskSpace(w http.ResponseWriter, r *http.Request) {
 	}
 	var best sonarr.Disk
 	for _, d := range disks {
-		// On garde le point de montage le plus long qui préfixe le dossier racine.
+		// Keep the longest mount point that prefixes the root folder.
 		if rootPath != "" && d.Path != "" &&
 			strings.HasPrefix(strings.ToLower(rootPath), strings.ToLower(d.Path)) &&
 			len(d.Path) >= len(best.Path) {
@@ -556,13 +556,13 @@ func (s *server) handleDiskSpace(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"path": rootPath, "free": best.FreeSpace, "total": best.TotalSpace})
 }
 
-// handleSearch lance une recherche interactive de torrents pour un épisode
-// (via les indexeurs configurés dans Sonarr) et renvoie la liste, triée par
-// nombre de seeders décroissant.
+// handleSearch runs an interactive torrent search for an episode (via the
+// indexers configured in Sonarr) and returns the list, sorted by descending
+// seeder count.
 func (s *server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	epID := atoiDefault(r.URL.Query().Get("episodeId"), 0)
 	if epID == 0 {
-		http.Error(w, "episodeId requis", http.StatusBadRequest)
+		http.Error(w, "episodeId required", http.StatusBadRequest)
 		return
 	}
 	rels, err := s.sc.SearchReleases(epID)
@@ -594,17 +594,17 @@ func (s *server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	sort.SliceStable(out, func(i, j int) bool {
 		ai, aj := out[i]["age"].(int), out[j]["age"].(int)
 		if ai != aj {
-			return ai < aj // plus récents d'abord, plus vieux à la fin
+			return ai < aj // newest first, oldest last
 		}
 		return out[i]["seeders"].(int) > out[j]["seeders"].(int)
 	})
 	writeJSON(w, map[string]any{"releases": out})
 }
 
-// handleGrab envoie une release choisie au client de téléchargement via Sonarr.
+// handleGrab sends a chosen release to the download client via Sonarr.
 func (s *server) handleGrab(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
@@ -612,11 +612,11 @@ func (s *server) handleGrab(w http.ResponseWriter, r *http.Request) {
 		IndexerID int    `json:"indexerId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "JSON invalide", http.StatusBadRequest)
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 	if body.GUID == "" {
-		http.Error(w, "guid requis", http.StatusBadRequest)
+		http.Error(w, "guid required", http.StatusBadRequest)
 		return
 	}
 	if err := s.sc.GrabRelease(body.GUID, body.IndexerID); err != nil {
@@ -634,13 +634,13 @@ func (s *server) handleTorrents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "qBittorrent: "+err.Error(), http.StatusBadGateway)
 		return
 	}
-	sort.SliceStable(ts, func(i, j int) bool { return ts[i].AddedOn > ts[j].AddedOn }) // plus récents en haut
+	sort.SliceStable(ts, func(i, j int) bool { return ts[i].AddedOn > ts[j].AddedOn }) // newest on top
 	writeJSON(w, map[string]any{"torrents": ts})
 }
 
-// handleQbitStatus dit à la page Torrents dans quel état est qBittorrent :
-// installé ? WebUI joignable ? connecté (auth OK) ? — pour afficher soit la table,
-// soit un champ mot de passe, soit « active la WebUI », soit « non installé ».
+// handleQbitStatus tells the Torrents page about qBittorrent's state:
+// installed? WebUI reachable? connected (auth OK)? — so it can show either the
+// table, a password field, "enable the WebUI", or "not installed".
 func (s *server) handleQbitStatus(w http.ResponseWriter, r *http.Request) {
 	connected := s.qb.Connected()
 	reachable := connected
@@ -660,11 +660,11 @@ func (s *server) handleQbitStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleQbitConnect reçoit le mot de passe saisi dans la page, teste la connexion,
-// et le mémorise dans config.json si ça marche.
+// handleQbitConnect receives the password entered on the page, tests the
+// connection, and stores it in config.json if it works.
 func (s *server) handleQbitConnect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
@@ -685,8 +685,8 @@ func (s *server) handleQbitConnect(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"connected": true})
 }
 
-// saveQbitConfig mémorise les identifiants qBittorrent dans config.json (en
-// préservant les autres champs) pour ne pas les ressaisir au prochain lancement.
+// saveQbitConfig stores the qBittorrent credentials in config.json (while
+// preserving the other fields) so they don't need to be re-entered next time.
 func (s *server) saveQbitConfig(url, user, pass string) {
 	if s.cfgPath == "" {
 		return
@@ -702,7 +702,7 @@ func (s *server) saveQbitConfig(url, user, pass string) {
 
 func (s *server) handleTorrentAction(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
@@ -711,7 +711,7 @@ func (s *server) handleTorrentAction(w http.ResponseWriter, r *http.Request) {
 		DeleteFiles bool   `json:"deleteFiles"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Hash == "" {
-		http.Error(w, "requête invalide", http.StatusBadRequest)
+		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	var err error
@@ -723,7 +723,7 @@ func (s *server) handleTorrentAction(w http.ResponseWriter, r *http.Request) {
 	case "delete":
 		err = s.qb.Delete(body.Hash, body.DeleteFiles)
 	default:
-		http.Error(w, "action inconnue", http.StatusBadRequest)
+		http.Error(w, "unknown action", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
@@ -733,7 +733,7 @@ func (s *server) handleTorrentAction(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// --- Ajout de série (Sonarr) ---
+// --- Add series (Sonarr) ---
 
 func pickFields(raw []byte, keys ...string) []map[string]any {
 	var arr []map[string]any
@@ -818,14 +818,14 @@ func (s *server) handleSeriesLookup(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
 		Label string `json:"label"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Label) == "" {
-		http.Error(w, "label requis", http.StatusBadRequest)
+		http.Error(w, "label required", http.StatusBadRequest)
 		return
 	}
 	b, err := s.sc.CreateTag(strings.TrimSpace(body.Label))
@@ -840,7 +840,7 @@ func (s *server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
@@ -854,10 +854,10 @@ func (s *server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		Tags             []int  `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.TvdbID == 0 {
-		http.Error(w, "tvdbId requis", http.StatusBadRequest)
+		http.Error(w, "tvdbId required", http.StatusBadRequest)
 		return
 	}
-	if body.RootFolderPath == "" { // défaut: 1er dossier racine de Sonarr
+	if body.RootFolderPath == "" { // default: Sonarr's first root folder
 		if roots, err := s.sc.RootFolders(); err == nil {
 			var ra []map[string]any
 			_ = json.Unmarshal(roots, &ra)
@@ -890,7 +890,7 @@ func (s *server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleProwlarrIndexers(w http.ResponseWriter, r *http.Request) {
 	if s.pr == nil {
-		http.Error(w, "Prowlarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Prowlarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	ix, err := s.pr.Indexers()
@@ -899,8 +899,8 @@ func (s *server) handleProwlarrIndexers(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	apps, _ := s.pr.Applications() // best-effort
-	// indexeurs déjà présents dans Sonarr/Radarr (poussés par Prowlarr) → on
-	// indique, par indexeur, lesquels ont bien accepté la synchro.
+	// Indexers already present in Sonarr/Radarr (pushed by Prowlarr): for each
+	// indexer, report which ones have accepted the sync.
 	var sonarrNames []string
 	if s.sc != nil {
 		sonarrNames, _ = s.sc.IndexerNames()
@@ -930,41 +930,41 @@ func (s *server) handleProwlarrIndexers(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, map[string]any{"indexers": out, "apps": apps, "radarrConfigured": s.rd != nil})
 }
 
-// handleProwlarrConnect déclare Sonarr ou Radarr comme "Application" dans
-// Prowlarr : une fois connecté, Prowlarr synchronise ses indexeurs vers cette
-// app automatiquement (remplace Jackett). Idempotent côté Prowlarr.
+// handleProwlarrConnect declares Sonarr or Radarr as an "Application" in
+// Prowlarr: once connected, Prowlarr automatically syncs its indexers to that
+// app (replaces Jackett). Idempotent on the Prowlarr side.
 func (s *server) handleProwlarrConnect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	if s.pr == nil {
-		http.Error(w, "Prowlarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Prowlarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	var body struct {
 		App string `json:"app"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "JSON invalide", http.StatusBadRequest)
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 	var name, impl, appURL, appKey string
 	switch body.App {
 	case "sonarr":
 		if s.sc == nil {
-			http.Error(w, "Sonarr non configuré", http.StatusServiceUnavailable)
+			http.Error(w, "Sonarr not configured", http.StatusServiceUnavailable)
 			return
 		}
 		name, impl, appURL, appKey = "Sonarr", "Sonarr", s.sc.BaseURL, s.sc.APIKey
 	case "radarr":
 		if s.rd == nil {
-			http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+			http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 			return
 		}
 		name, impl, appURL, appKey = "Radarr", "Radarr", s.rd.BaseURL, s.rd.APIKey
 	default:
-		http.Error(w, "app inconnue", http.StatusBadRequest)
+		http.Error(w, "unknown app", http.StatusBadRequest)
 		return
 	}
 	created, err := s.pr.AddApplication(name, impl, s.pr.BaseURL, appURL, appKey)
@@ -972,17 +972,17 @@ func (s *server) handleProwlarrConnect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Prowlarr: "+err.Error(), http.StatusBadGateway)
 		return
 	}
-	_ = s.pr.SyncApps() // pousse les indexeurs vers l'app juste connectée
+	_ = s.pr.SyncApps() // push indexers to the app just connected
 	writeJSON(w, map[string]any{"ok": true, "created": created})
 }
 
 func (s *server) handleProwlarrSync(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	if s.pr == nil {
-		http.Error(w, "Prowlarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Prowlarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	if err := s.pr.SyncApps(); err != nil {
@@ -992,10 +992,10 @@ func (s *server) handleProwlarrSync(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// handleProwlarrSchema renvoie le catalogue d'indexeurs disponibles (slim).
+// handleProwlarrSchema returns the catalog of available indexers (slim).
 func (s *server) handleProwlarrSchema(w http.ResponseWriter, r *http.Request) {
 	if s.pr == nil {
-		http.Error(w, "Prowlarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Prowlarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	b, err := s.pr.IndexerSchema()
@@ -1019,21 +1019,21 @@ func (s *server) handleProwlarrSchema(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"indexers": out})
 }
 
-// handleProwlarrAdd ajoute un indexeur du catalogue par son nom.
+// handleProwlarrAdd adds an indexer from the catalog by its name.
 func (s *server) handleProwlarrAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	if s.pr == nil {
-		http.Error(w, "Prowlarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Prowlarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	var body struct {
 		Name string `json:"name"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
-		http.Error(w, "name requis", http.StatusBadRequest)
+		http.Error(w, "name required", http.StatusBadRequest)
 		return
 	}
 	if err := s.pr.AddIndexer(body.Name); err != nil {
@@ -1045,11 +1045,11 @@ func (s *server) handleProwlarrAdd(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleProwlarrToggle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	if s.pr == nil {
-		http.Error(w, "Prowlarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Prowlarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	var body struct {
@@ -1057,7 +1057,7 @@ func (s *server) handleProwlarrToggle(w http.ResponseWriter, r *http.Request) {
 		Enable bool `json:"enable"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == 0 {
-		http.Error(w, "id requis", http.StatusBadRequest)
+		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 	if err := s.pr.SetEnabled(body.ID, body.Enable); err != nil {
@@ -1067,11 +1067,11 @@ func (s *server) handleProwlarrToggle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// --- Films (Radarr) ---
+// --- Movies (Radarr) ---
 
 func (s *server) handleFilms(w http.ResponseWriter, r *http.Request) {
 	if s.rd == nil {
-		http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	movies, err := s.rd.Library()
@@ -1110,17 +1110,17 @@ func (s *server) handleFilms(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleMoviePlay(w http.ResponseWriter, r *http.Request) {
 	if s.rd == nil {
-		http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	id := atoiDefault(r.PathValue("movieId"), 0)
 	if id == 0 {
-		http.Error(w, "movieId invalide", http.StatusBadRequest)
+		http.Error(w, "invalid movieId", http.StatusBadRequest)
 		return
 	}
 	path, err := s.rd.MovieFilePath(id)
 	if err != nil {
-		http.Error(w, "fichier introuvable: "+err.Error(), http.StatusNotFound)
+		http.Error(w, "file not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 	http.ServeFile(w, r, path)
@@ -1128,12 +1128,12 @@ func (s *server) handleMoviePlay(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleFilmsSearch(w http.ResponseWriter, r *http.Request) {
 	if s.rd == nil {
-		http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	id := atoiDefault(r.URL.Query().Get("movieId"), 0)
 	if id == 0 {
-		http.Error(w, "movieId requis", http.StatusBadRequest)
+		http.Error(w, "movieId required", http.StatusBadRequest)
 		return
 	}
 	rels, err := s.rd.SearchReleases(id)
@@ -1166,11 +1166,11 @@ func (s *server) handleFilmsSearch(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleFilmsGrab(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	if s.rd == nil {
-		http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	var body struct {
@@ -1178,7 +1178,7 @@ func (s *server) handleFilmsGrab(w http.ResponseWriter, r *http.Request) {
 		IndexerID int    `json:"indexerId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.GUID == "" {
-		http.Error(w, "guid requis", http.StatusBadRequest)
+		http.Error(w, "guid required", http.StatusBadRequest)
 		return
 	}
 	if err := s.rd.GrabRelease(body.GUID, body.IndexerID); err != nil {
@@ -1190,7 +1190,7 @@ func (s *server) handleFilmsGrab(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleMovieOptions(w http.ResponseWriter, r *http.Request) {
 	if s.rd == nil {
-		http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	prof, err := s.rd.QualityProfiles()
@@ -1218,11 +1218,11 @@ func (s *server) handleMovieOptions(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST requis", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	if s.rd == nil {
-		http.Error(w, "Radarr non configuré", http.StatusServiceUnavailable)
+		http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
 		return
 	}
 	var body struct {
@@ -1235,7 +1235,7 @@ func (s *server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		Tags                []int  `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.TmdbID == 0 {
-		http.Error(w, "tmdbId requis", http.StatusBadRequest)
+		http.Error(w, "tmdbId required", http.StatusBadRequest)
 		return
 	}
 	if body.RootFolderPath == "" {
@@ -1266,8 +1266,8 @@ func (s *server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// handleSearchAdd : recherche unifiée séries (Sonarr) + films (Radarr) pour
-// l'ajout. Chaque résultat est étiqueté par "type".
+// handleSearchAdd performs a unified search across series (Sonarr) and movies
+// (Radarr) for adding. Each result is tagged with its "type".
 func (s *server) handleSearchAdd(w http.ResponseWriter, r *http.Request) {
 	term := strings.TrimSpace(r.URL.Query().Get("term"))
 	if term == "" {
@@ -1324,34 +1324,34 @@ func (s *server) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handlePlayFile sert le fichier vidéo d'un épisode en HTTP (avec range), pour
-// que MPC-BE (lancé par Client.exe sur la machine de visionnage) le lise depuis
-// le LAN. Le chemin du fichier vient de Sonarr.
+// handlePlayFile serves an episode's video file over HTTP (with range support),
+// so MPC-BE (launched by client.exe on the viewing machine) can play it from
+// the LAN. The file path comes from Sonarr.
 func (s *server) handlePlayFile(w http.ResponseWriter, r *http.Request) {
 	epID := atoiDefault(r.URL.Query().Get("episodeId"), 0)
 	if epID == 0 {
-		http.Error(w, "episodeId requis", http.StatusBadRequest)
+		http.Error(w, "episodeId required", http.StatusBadRequest)
 		return
 	}
 	path, err := s.sc.EpisodeFilePath(epID)
 	if err != nil {
-		http.Error(w, "fichier introuvable: "+err.Error(), http.StatusNotFound)
+		http.Error(w, "file not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 	http.ServeFile(w, r, path)
 }
 
-// handlePlay sert le fichier via une URL qui se termine par le nom du fichier
-// (ex: /play/16354/Episode.mkv) — important pour que MPC-BE reconnaisse le média.
+// handlePlay serves the file via a URL that ends with the file name
+// (e.g. /play/16354/Episode.mkv), which is important so MPC-BE recognizes the media.
 func (s *server) handlePlay(w http.ResponseWriter, r *http.Request) {
 	epID := atoiDefault(r.PathValue("episodeId"), 0)
 	if epID == 0 {
-		http.Error(w, "episodeId invalide", http.StatusBadRequest)
+		http.Error(w, "invalid episodeId", http.StatusBadRequest)
 		return
 	}
 	path, err := s.sc.EpisodeFilePath(epID)
 	if err != nil {
-		http.Error(w, "fichier introuvable: "+err.Error(), http.StatusNotFound)
+		http.Error(w, "file not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 	http.ServeFile(w, r, path)
@@ -1371,7 +1371,7 @@ func (s *server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	s.hub.broadcast(msg)
 }
 
-// pollQueue interroge la file Sonarr toutes les 5s et diffuse la progression.
+// pollQueue polls the Sonarr queue every 5s and broadcasts progress.
 func (s *server) pollQueue() {
 	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
@@ -1380,9 +1380,9 @@ func (s *server) pollQueue() {
 	prevActive := false
 	var lastRefresh time.Time
 	for range t.C {
-		// Tant qu'un téléchargement est actif (en cours / import), on force Sonarr à
-		// se resynchroniser avec qBittorrent (au plus toutes les 5s). Sinon sa file
-		// reste périmée ~1 min et un DL terminé reste affiché « en cours » longtemps.
+		// As long as a download is active (in progress / importing), force Sonarr
+		// to resync with qBittorrent (at most every 5s). Otherwise its queue stays
+		// stale for ~1 min and a finished download keeps showing "in progress" for a while.
 		if prevActive && time.Since(lastRefresh) >= 5*time.Second {
 			_ = s.sc.RefreshDownloads()
 			lastRefresh = time.Now()
@@ -1408,8 +1408,8 @@ func (s *server) pollQueue() {
 			s.broadcastProgress(m)
 			wasActive = len(m) > 0
 		}
-		// Un épisode a quitté la file (téléchargement/import terminé) → demande au
-		// calendrier de se rafraîchir pour refléter le fichier (marche sans webhook).
+		// An episode has left the queue (download/import finished): ask the
+		// calendar to refresh to reflect the new file (works without a webhook).
 		for id := range prev {
 			if !cur[id] {
 				msg, _ := json.Marshal(map[string]any{"type": "calendar"})
@@ -1431,8 +1431,8 @@ func (s *server) broadcastProgress(m map[int]queueProg) {
 	s.hub.broadcast(msg)
 }
 
-// registerWebhook enregistre (une fois) un webhook Sonarr pointant sur ce serveur,
-// pour rafraîchir le calendrier instantanément sur grab/download/import.
+// registerWebhook registers (once) a Sonarr webhook pointing at this server,
+// to refresh the calendar instantly on grab/download/import.
 func (s *server) registerWebhook(addr string) {
 	time.Sleep(1500 * time.Millisecond)
 	_, port, err := net.SplitHostPort(addr)
@@ -1441,11 +1441,11 @@ func (s *server) registerWebhook(addr string) {
 	}
 	callback := "http://localhost:" + port + "/sonarr/webhook"
 	if created, err := s.sc.EnsureWebhook("calendarr-local", callback); err != nil {
-		log.Printf("webhook: auto-enregistrement échoué (le calendrier se met à jour au prochain refetch): %v", err)
+		log.Printf("webhook: auto-registration failed (the calendar will update on the next refetch): %v", err)
 	} else if created {
-		log.Printf("webhook: enregistré dans Sonarr -> %s", callback)
+		log.Printf("webhook: registered in Sonarr -> %s", callback)
 	} else {
-		log.Printf("webhook: déjà présent dans Sonarr")
+		log.Printf("webhook: already present in Sonarr")
 	}
 }
 
@@ -1470,7 +1470,7 @@ func parseAir(s string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-var frMonths = []string{"", "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"}
+var frMonths = []string{"", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"}
 
 func frenchMonth(t time.Time) string {
 	return frMonths[int(t.Month())] + " " + strconv.Itoa(t.Year())

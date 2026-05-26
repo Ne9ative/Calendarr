@@ -1,6 +1,6 @@
-// i18n : dictionnaires de traduction + détection de langue. Chargé AVANT app.js.
-// Ajouter une langue = ajouter une entrée dans MESSAGES (mêmes clés) et dans LANGS.
-// Les noms propres (Sonarr, Radarr, Prowlarr, qBittorrent, MPC-BE) ne se traduisent pas.
+// i18n: translation dictionaries + language detection. Loaded BEFORE app.js.
+// Adding a language = add an entry to MESSAGES (same keys) and to LANGS.
+// Proper nouns (Sonarr, Radarr, Prowlarr, qBittorrent, MPC-BE) are not translated.
 
 const LANGS = [
     { code: 'en', name: 'English' },
@@ -449,7 +449,7 @@ const MESSAGES = {
     },
 };
 
-// detectLocale : langue mémorisée > langue(s) du navigateur > anglais.
+// detectLocale: saved language > browser language(s) > English.
 function detectLocale() {
     try {
         const saved = localStorage.getItem('lang');

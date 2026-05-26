@@ -1,6 +1,6 @@
 const { createApp } = Vue;
 
-// Icônes Material (chemins SVG inline) — pas de police externe, marche offline.
+// Material icons (inline SVG paths) — no external font, works offline.
 const ICONS = {
     search: 'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
     share: 'M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z',
@@ -34,9 +34,9 @@ const app = createApp({
             loading: true, share: '', sonarrUrl: '', shareOpen: false,
             selected: null, searching: false, releases: null, grabbed: {},
             view: 'calendar',
-            // Disponibilité des services (rempli par /api/status). true par défaut
-            // pour ne rien masquer le temps que le statut arrive. (qBittorrent n'y
-            // est pas : la page Torrents se base directement sur /api/torrents.)
+            // Service availability (populated by /api/status). Defaults to true so
+            // nothing is hidden while the status is still loading. (qBittorrent is
+            // not listed here: the Torrents page relies directly on /api/torrents.)
             services: { sonarr: true, radarr: true, prowlarr: true },
             tabs: [
                 { id: 'calendar', key: 'nav_calendar' },
@@ -68,7 +68,7 @@ const app = createApp({
         weekDayNames() {
             const fmt = new Intl.DateTimeFormat(this.lang, { weekday: 'long' });
             const out = [];
-            for (let i = 0; i < 7; i++) { // 2024-01-01 = lundi
+            for (let i = 0; i < 7; i++) { // 2024-01-01 = Monday
                 const s = fmt.format(new Date(2024, 0, 1 + i));
                 out.push(s.charAt(0).toUpperCase() + s.slice(1));
             }
@@ -86,7 +86,7 @@ const app = createApp({
             if (!this.year) return [];
             const first = new Date(this.year, this.month - 1, 1);
             const daysInMonth = new Date(this.year, this.month, 0).getDate();
-            const startOffset = (first.getDay() + 6) % 7; // lundi = 0
+            const startOffset = (first.getDay() + 6) % 7; // Monday = 0
             const total = Math.ceil((startOffset + daysInMonth) / 7) * 7;
             const gridStart = new Date(this.year, this.month - 1, 1 - startOffset);
             const cells = [];
@@ -126,15 +126,15 @@ const app = createApp({
             try { localStorage.setItem('lang', code); } catch (e) {}
             document.documentElement.lang = code;
         },
-        // Repositionne le soulignement glissant sous l'onglet actif.
+        // Reposition the sliding underline under the active tab.
         updateUnderline() {
             const tabs = document.querySelector('.tabs');
             const active = tabs && tabs.querySelector('.tab.active');
             if (!active) return;
             this.underline = { left: active.offsetLeft + 2, width: Math.max(0, active.offsetWidth - 4) };
         },
-        // Ferme le menu réglages si on clique en dehors (le backdrop fixe ne marche
-        // pas : la topbar a un backdrop-filter qui confine le position:fixed).
+        // Close the settings menu on outside click (a fixed backdrop doesn't work:
+        // the topbar's backdrop-filter constrains the position:fixed element).
         onDocClick(e) {
             if (this.optsOpen && !e.target.closest('.opts-wrap')) this.optsOpen = false;
         },
@@ -207,7 +207,7 @@ const app = createApp({
         },
         goHome() {
             this.view = 'calendar';
-            this.load(); // mois courant + scroll sur aujourd'hui
+            this.load(); // current month + scroll to today
         },
         openModal(ep) { this.selected = ep; this.releases = null; this.searching = false; this.grabbed = {}; },
         closeModal() { this.selected = null; },
@@ -259,7 +259,7 @@ const app = createApp({
                 this.grabbed[rel.guid] = 'err';
             }
         },
-        // --- Recherche / ajout de série (Sonarr) ---
+        // --- Series search / add (Sonarr) ---
         onSeriesInput() {
             clearTimeout(this._seriesTimer);
             if (!this.seriesQuery.trim()) { this.seriesResults = null; return; }
@@ -512,12 +512,12 @@ const app = createApp({
             if (oldKey && newKey !== oldKey) this.slideDir = newKey > oldKey ? 'next' : 'prev';
             this.loading = false;
             if (!scroll) return;
-            if (y && m) window.scrollTo({ top: 0, behavior: 'smooth' }); // navigation par mois → haut de page
-            else if (this.autoScroll) this.scrollToToday();              // « Aujourd'hui » / ouverture
+            if (y && m) window.scrollTo({ top: 0, behavior: 'smooth' }); // month navigation → top of page
+            else if (this.autoScroll) this.scrollToToday();              // "Today" / initial open
         },
-        // Recharge le calendrier suite à un événement serveur, mais en regroupant
-        // les rafales (grab + download + import d'un même DL) et SANS re-scroller,
-        // pour ne pas faire sauter la vue pendant un téléchargement.
+        // Reload the calendar after a server event, but coalesce bursts (grab +
+        // download + import of the same DL) and DO NOT re-scroll, so the view
+        // doesn't jump around during a download.
         scheduleCalendarReload() {
             clearTimeout(this._calReloadTimer);
             this._calReloadTimer = setTimeout(() => this.load(this.year, this.month, false), 700);
@@ -540,10 +540,10 @@ const app = createApp({
             }
         },
         async play(ep) {
-            // Le navigateur ne peut pas lancer MPC-BE : on passe par le helper
-            // client.exe (localhost:8788) qui ouvre MPC-BE sur l'URL HTTP du
-            // fichier servie par CE serveur. location.host = l'adresse tapée par
-            // l'utilisateur → rien de codé en dur, marche partout.
+            // The browser can't launch MPC-BE directly: we go through the
+            // client.exe helper (localhost:8788), which opens MPC-BE on the HTTP
+            // URL of the file served by THIS server. location.host = the address
+            // typed by the user → nothing hardcoded, works anywhere.
             const name = ep.fileName || `${ep.series}.mkv`;
             const fileUrl = `${location.protocol}//${location.host}/play/${ep.episodeId}/${encodeURIComponent(name)}`;
             try {
@@ -553,7 +553,7 @@ const app = createApp({
                 alert(this.t('alert_no_player'));
             }
         },
-        // --- Films (Radarr) ---
+        // --- Movies (Radarr) ---
         async loadFilms() {
             if (!this.services.radarr) { this.films = []; return; }
             this.filmsLoading = true; this.filmsError = '';

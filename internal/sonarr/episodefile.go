@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// EpisodeFilePath renvoie le chemin disque du fichier d'un épisode (pour la lecture).
+// EpisodeFilePath returns the on-disk file path of an episode (for playback).
 func (c *Client) EpisodeFilePath(episodeID int) (string, error) {
 	b, err := c.apiGet(fmt.Sprintf("/api/v3/episode/%d", episodeID))
 	if err != nil {
@@ -20,7 +20,7 @@ func (c *Client) EpisodeFilePath(episodeID int) (string, error) {
 		return "", err
 	}
 	if ep.EpisodeFile.Path == "" {
-		return "", fmt.Errorf("aucun fichier pour l'épisode %d", episodeID)
+		return "", fmt.Errorf("no file for episode %d", episodeID)
 	}
 	return ep.EpisodeFile.Path, nil
 }

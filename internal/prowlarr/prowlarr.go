@@ -1,6 +1,6 @@
-// Package prowlarr parle à l'API de Prowlarr (v1). Comme Sonarr, la clé API se
-// lit dans le config.xml local (install indolore quand on tourne sur la machine
-// Prowlarr). Prowlarr n'écoute souvent que sur localhost.
+// Package prowlarr talks to the Prowlarr API (v1). Like Sonarr, the API key is
+// read from the local config.xml (zero-config install when running on the
+// Prowlarr machine). Prowlarr often listens only on localhost.
 package prowlarr
 
 import (
@@ -67,7 +67,7 @@ func configPaths() []string {
 }
 
 func readLocalConfig() (string, string, error) {
-	var lastErr error = fmt.Errorf("config.xml Prowlarr introuvable")
+	var lastErr error = fmt.Errorf("Prowlarr config.xml not found")
 	for _, p := range configPaths() {
 		data, e := os.ReadFile(p)
 		if e != nil {
@@ -80,7 +80,7 @@ func readLocalConfig() (string, string, error) {
 			continue
 		}
 		if c.APIKey == "" {
-			lastErr = fmt.Errorf("ApiKey vide dans %s", p)
+			lastErr = fmt.Errorf("ApiKey empty in %s", p)
 			continue
 		}
 		port := c.Port
@@ -118,7 +118,7 @@ func (c *Client) req(method, path string, body []byte) ([]byte, error) {
 	return b, nil
 }
 
-// Indexer = vue simplifiée d'un indexeur Prowlarr pour l'affichage.
+// Indexer is a simplified view of a Prowlarr indexer for display.
 type Indexer struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`
@@ -140,8 +140,8 @@ func (c *Client) Indexers() ([]Indexer, error) {
 	return ix, nil
 }
 
-// SetEnabled active/désactive un indexeur. Prowlarr veut l'objet complet en PUT,
-// donc on le relit, on bascule `enable`, et on le renvoie tel quel.
+// SetEnabled enables or disables an indexer. Prowlarr expects the full object
+// in PUT, so we re-read it, toggle `enable`, and send it back as-is.
 func (c *Client) SetEnabled(id int, enabled bool) error {
 	b, err := c.req(http.MethodGet, fmt.Sprintf("/api/v1/indexer/%d", id), nil)
 	if err != nil {
@@ -157,13 +157,13 @@ func (c *Client) SetEnabled(id int, enabled bool) error {
 	return err
 }
 
-// App = application déclarée dans Prowlarr (Sonarr/Radarr).
+// App is an application declared in Prowlarr (Sonarr/Radarr).
 type App struct {
 	Name           string `json:"name"`
 	Implementation string `json:"implementation"`
 }
 
-// Applications liste les apps déjà connectées à Prowlarr.
+// Applications lists the apps already connected to Prowlarr.
 func (c *Client) Applications() ([]App, error) {
 	b, err := c.req(http.MethodGet, "/api/v1/applications", nil)
 	if err != nil {
@@ -176,14 +176,14 @@ func (c *Client) Applications() ([]App, error) {
 	return apps, nil
 }
 
-// AddApplication déclare une app (Sonarr ou Radarr) dans Prowlarr → Settings →
-// Apps. Une fois déclarée, Prowlarr synchronise automatiquement tous ses
-// indexeurs vers cette app (c'est le mécanisme qui remplace Jackett). Idempotent
-// par nom : ne recrée pas si déjà présent. Renvoie true si une app a été créée.
+// AddApplication declares an app (Sonarr or Radarr) in Prowlarr -> Settings ->
+// Apps. Once declared, Prowlarr automatically syncs all of its indexers to
+// that app (the mechanism that replaces Jackett). Idempotent by name: does
+// not recreate it if already present. Returns true if an app was created.
 //
-// On part du schéma fourni par Prowlarr (il contient implementation,
-// configContract et les bonnes catégories de sync par défaut), on n'y remplace
-// que le nom, le niveau de sync et les 3 champs de connexion.
+// We start from the schema provided by Prowlarr (it contains implementation,
+// configContract and the right default sync categories), and only replace
+// the name, sync level, and the 3 connection fields.
 func (c *Client) AddApplication(name, implementation, prowlarrURL, appBaseURL, appAPIKey string) (bool, error) {
 	b, err := c.req(http.MethodGet, "/api/v1/applications", nil)
 	if err != nil {
@@ -211,7 +211,7 @@ func (c *Client) AddApplication(name, implementation, prowlarrURL, appBaseURL, a
 		}
 	}
 	if tpl == nil {
-		return false, fmt.Errorf("schéma application %q introuvable dans Prowlarr", implementation)
+		return false, fmt.Errorf("application schema %q not found in Prowlarr", implementation)
 	}
 
 	tpl["name"] = name
@@ -231,32 +231,32 @@ func (c *Client) AddApplication(name, implementation, prowlarrURL, appBaseURL, a
 	}
 
 	body, _ := json.Marshal(tpl)
-	// PAS de forceSave ici : on veut que Prowlarr teste vraiment la connexion à
-	// l'app. Sinon une app en erreur serait enregistrée mais ne se synchroniserait
-	// jamais. En cas d'échec, l'erreur remonte à l'utilisateur.
+	// NO forceSave here: we want Prowlarr to actually test the connection to
+	// the app. Otherwise a broken app would be saved but never sync. On
+	// failure, the error is surfaced to the user.
 	if _, err := c.req(http.MethodPost, "/api/v1/applications", body); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// SyncApps force Prowlarr à pousser ses indexeurs vers les apps connectées
-// (Sonarr/Radarr). Sans ça, la synchro n'a lieu qu'à intervalle régulier ou
-// quand un indexeur change.
+// SyncApps forces Prowlarr to push its indexers to the connected apps
+// (Sonarr/Radarr). Without this, the sync only happens at regular intervals or
+// when an indexer changes.
 func (c *Client) SyncApps() error {
 	_, err := c.req(http.MethodPost, "/api/v1/command", []byte(`{"name":"ApplicationIndexerSync"}`))
 	return err
 }
 
-// IndexerSchema renvoie le catalogue d'indexeurs disponibles (brut).
+// IndexerSchema returns the raw catalog of available indexers.
 func (c *Client) IndexerSchema() ([]byte, error) {
 	return c.req(http.MethodGet, "/api/v1/indexer/schema", nil)
 }
 
-// AddIndexer ajoute un indexeur du catalogue (par son nom), activé. On repart de
-// l'entrée de schéma (elle contient implementation/configContract/champs par
-// défaut) — fonctionne tel quel pour les indexeurs publics ; les indexeurs
-// privés qui exigent des identifiants renverront une erreur de validation.
+// AddIndexer adds an indexer from the catalog (by name), enabled. We start
+// from the schema entry (it contains implementation/configContract/default
+// fields) — this works as-is for public indexers; private indexers that
+// require credentials will return a validation error.
 func (c *Client) AddIndexer(name string) error {
 	b, err := c.req(http.MethodGet, "/api/v1/indexer/schema", nil)
 	if err != nil {
@@ -274,19 +274,19 @@ func (c *Client) AddIndexer(name string) error {
 		}
 	}
 	if tpl == nil {
-		return fmt.Errorf("indexeur %q introuvable dans le catalogue", name)
+		return fmt.Errorf("indexer %q not found in the catalog", name)
 	}
 	tpl["enable"] = true
-	tpl["appProfileId"] = c.defaultAppProfileID() // requis par Prowlarr
+	tpl["appProfileId"] = c.defaultAppProfileID() // required by Prowlarr
 	body, _ := json.Marshal(tpl)
-	// forceSave=true : on enregistre sans exiger que le test de connexion passe
-	// (utile pour les indexeurs publics parfois bloqués) ; configurable ensuite.
+	// forceSave=true: we save without requiring the connection test to pass
+	// (useful for public indexers that are sometimes blocked); configurable afterwards.
 	_, err = c.req(http.MethodPost, "/api/v1/indexer?forceSave=true", body)
 	return err
 }
 
-// defaultAppProfileID renvoie l'id du 1er « App Profile » Prowlarr (toujours
-// présent ; 1 par défaut). Prowlarr l'exige pour créer un indexeur.
+// defaultAppProfileID returns the ID of the first Prowlarr "App Profile"
+// (always present; 1 by default). Prowlarr requires it to create an indexer.
 func (c *Client) defaultAppProfileID() int {
 	b, err := c.req(http.MethodGet, "/api/v1/appprofile", nil)
 	if err == nil {

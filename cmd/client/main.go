@@ -1,8 +1,8 @@
-// client : petit helper à lancer sur la machine de visionnage. Il vit dans la
-// zone de notification (system tray) : clic gauche = ouvrir le calendrier, clic
-// droit = menu (démarrage auto, fermer). En tâche de fond il écoute en local et,
-// quand on clique "play" dans le calendrier (navigateur), lance MPC-BE sur l'URL
-// du fichier servie par le serveur — le navigateur ne peut pas lancer une appli.
+// client: small helper to run on the viewing machine. It lives in the system
+// tray: left-click opens the calendar, right-click shows the menu (auto-start,
+// close). In the background it listens locally and, when the user clicks "play"
+// in the calendar (browser), launches MPC-BE on the file URL served by the
+// server — the browser cannot launch an application directly.
 package main
 
 import (
@@ -24,8 +24,8 @@ import (
 var iconFS embed.FS
 
 func main() {
-	addr := flag.String("addr", "127.0.0.1:8788", "adresse locale du helper")
-	mpc := flag.String("mpc", "", "chemin de MPC-BE (vide = auto-détection)")
+	addr := flag.String("addr", "127.0.0.1:8788", "local helper address")
+	mpc := flag.String("mpc", "", "MPC-BE path (empty = auto-detect)")
 	flag.Parse()
 
 	exePath, _ := os.Executable()
@@ -35,40 +35,40 @@ func main() {
 	}
 
 	if p := player.FindMPCBE(*mpc); p != "" {
-		log.Printf("MPC-BE détecté: %s", p)
+		log.Printf("MPC-BE detected: %s", p)
 	} else {
-		log.Printf("MPC-BE introuvable — précise -mpc <chemin> si besoin (le helper tourne quand même)")
+		log.Printf("MPC-BE not found — specify -mpc <path> if needed (the helper still runs)")
 	}
 
 	ln, err := net.Listen("tcp", *addr)
 	if err != nil {
-		// Port déjà pris = une autre instance du helper tourne déjà.
-		desktop.MessageBox("Calendarr", "client.exe est déjà lancé sur cette machine.")
+		// Port already in use = another instance of the helper is already running.
+		desktop.MessageBox("Calendarr", "client.exe is already running on this machine.")
 		return
 	}
 
 	http.HandleFunc("/play", func(w http.ResponseWriter, r *http.Request) {
-		// La page est servie depuis le LAN (serveur:8787) et appelle ce helper
-		// en loopback : Chrome envoie un preflight Private Network Access qu'il
-		// faut autoriser explicitement, sinon le fetch est bloqué.
+		// The page is served from the LAN (server:8787) and calls this helper
+		// on loopback: Chrome sends a Private Network Access preflight that
+		// must be explicitly allowed, otherwise the fetch is blocked.
 		if cors(w, r) {
 			return
 		}
 		url := r.URL.Query().Get("url")
 		if url == "" {
-			http.Error(w, "url requise", http.StatusBadRequest)
+			http.Error(w, "url required", http.StatusBadRequest)
 			return
 		}
 		p := player.FindMPCBE(*mpc)
 		if p == "" {
-			http.Error(w, "MPC-BE introuvable", http.StatusServiceUnavailable)
+			http.Error(w, "MPC-BE not found", http.StatusServiceUnavailable)
 			return
 		}
 		if err := player.Play(p, url); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		log.Printf("lecture: %s", url)
+		log.Printf("playing: %s", url)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
@@ -81,28 +81,28 @@ func main() {
 	})
 
 	go func() {
-		log.Printf("client prêt : http://%s (helper de lecture MPC-BE)", *addr)
+		log.Printf("client ready: http://%s (MPC-BE playback helper)", *addr)
 		if err := http.Serve(ln, nil); err != nil {
-			log.Printf("helper arrêté : %v", err)
+			log.Printf("helper stopped: %v", err)
 		}
 	}()
 
 	runTray()
 }
 
-// runTray installe l'icône dans la zone de notification. Clic gauche ouvre le
-// calendrier ; clic droit ouvre le menu (démarrage auto, fermer).
+// runTray installs the system-tray icon. Left-click opens the calendar;
+// right-click shows the menu (auto-start, close).
 func runTray() {
 	const appName = "CalendarrClient"
 	iconBytes, _ := iconFS.ReadFile("icon.ico")
 	onReady := func() {
 		systray.SetIcon(iconBytes)
-		systray.SetTooltip("Calendarr — clic pour ouvrir le calendrier")
-		systray.SetOnTapped(func() { go openCalendar() }) // clic gauche
+		systray.SetTooltip("Calendarr — click to open the calendar")
+		systray.SetOnTapped(func() { go openCalendar() }) // left-click
 
-		mAuto := systray.AddMenuItemCheckbox("Démarrer avec Windows", "Lancer automatiquement à l'ouverture de Windows", desktop.AutoStartEnabled(appName))
+		mAuto := systray.AddMenuItemCheckbox("Start with Windows", "Launch automatically when Windows starts", desktop.AutoStartEnabled(appName))
 		systray.AddSeparator()
-		mQuit := systray.AddMenuItem("Fermer", "Quitter Calendarr")
+		mQuit := systray.AddMenuItem("Quit", "Quit Calendarr")
 
 		go func() {
 			for {
@@ -110,7 +110,7 @@ func runTray() {
 				case <-mAuto.ClickedCh:
 					enable := !mAuto.Checked()
 					if err := desktop.SetAutoStart(appName, enable); err != nil {
-						desktop.MessageBox("Calendarr", "Démarrage auto : "+err.Error())
+						desktop.MessageBox("Calendarr", "Auto-start: "+err.Error())
 						continue
 					}
 					if enable {
@@ -128,8 +128,8 @@ func runTray() {
 	systray.Run(onReady, func() { os.Exit(0) })
 }
 
-// cors pose les en-têtes CORS + Private Network Access. Renvoie true si la
-// requête était un preflight OPTIONS (déjà répondu, l'appelant doit s'arrêter).
+// cors sets the CORS + Private Network Access headers. Returns true if the
+// request was an OPTIONS preflight (already answered, the caller must stop).
 func cors(w http.ResponseWriter, r *http.Request) bool {
 	h := w.Header()
 	h.Set("Access-Control-Allow-Origin", "*")

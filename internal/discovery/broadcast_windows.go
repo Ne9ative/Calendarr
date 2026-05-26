@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-// Broadcast diffuse le phare en continu (toutes les 2 s) vers TOUTES les
-// interfaces réseau. Bloquant : à lancer dans une goroutine. Nécessite
-// SO_BROADCAST, sinon Windows refuse l'envoi vers une adresse de broadcast.
+// Broadcast continuously emits the beacon (every 2s) on ALL network
+// interfaces. Blocking: must be launched in a goroutine. Requires
+// SO_BROADCAST, otherwise Windows refuses to send to a broadcast address.
 func Broadcast(httpPort, host string) error {
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
@@ -26,8 +26,8 @@ func Broadcast(httpPort, host string) error {
 
 	msg := []byte(Message(httpPort, host))
 	for {
-		// Une émission par interface (192.168.x.255, etc.) + le broadcast global
-		// en filet de sécurité. Si aucune interface trouvée, au moins le global.
+		// One emission per interface (192.168.x.255, etc.) plus the global
+		// broadcast as a safety net. If no interface is found, at least the global one.
 		for _, bc := range BroadcastAddrs() {
 			_, _ = conn.WriteToUDP(msg, &net.UDPAddr{IP: bc, Port: Port})
 		}

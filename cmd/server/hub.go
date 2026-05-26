@@ -6,9 +6,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// hub = ensemble des navigateurs connectés en WebSocket. On leur diffuse les
-// mises à jour (progression des DL, changement de calendrier). Direct sur le LAN,
-// pas de service externe.
+// hub is the set of browsers connected over WebSocket. We broadcast updates
+// to them (download progress, calendar changes). Direct on the LAN, no
+// external service.
 type hub struct {
 	mu      sync.Mutex
 	clients map[*websocket.Conn]bool
