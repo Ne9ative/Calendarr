@@ -33,6 +33,7 @@ const app = createApp({
             days: {}, watched: [], stats: { episodes: 0, downloaded: 0, watched: 0 },
             loading: true, share: '', sonarrUrl: '', shareOpen: false,
             selected: null, searching: false, releases: null, grabbed: {},
+            showTorrents: false, relQuery: '', relQuality: 'All', relSort: 'seeds',
             view: 'calendar',
             // Service availability (populated by /api/status). Defaults to true so
             // nothing is hidden while the status is still loading. (qBittorrent is
@@ -105,6 +106,27 @@ const app = createApp({
             return cells;
         },
         torrentsActive() { return this.torrents.filter((t) => !this.tInfo(t.state).paused).length; },
+        filteredReleases() {
+            if (!this.releases) return [];
+            const q = this.relQuery.trim().toLowerCase();
+            const quality = this.relQuality;
+            const arr = this.releases.filter((r) => {
+                if (q) {
+                    const inTitle = (r.title || '').toLowerCase().includes(q);
+                    const inIdx = (r.indexer || '').toLowerCase().includes(q);
+                    if (!inTitle && !inIdx) return false;
+                }
+                if (quality !== 'All') {
+                    const qs = (r.quality || '').toLowerCase();
+                    if (!qs.includes(quality.toLowerCase())) return false;
+                }
+                return true;
+            });
+            if (this.relSort === 'size') {
+                return arr.slice().sort((a, b) => (b.size || 0) - (a.size || 0));
+            }
+            return arr.slice().sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
+        },
         filteredSchema() {
             if (!this.schemaList) return [];
             const q = this.schemaQuery.trim().toLowerCase();
@@ -209,8 +231,13 @@ const app = createApp({
             this.view = 'calendar';
             this.load(); // current month + scroll to today
         },
-        openModal(ep) { this.selected = ep; this.releases = null; this.searching = false; this.grabbed = {}; },
-        closeModal() { this.selected = null; },
+        openModal(ep) {
+            this.selected = ep;
+            this.releases = null; this.searching = false; this.grabbed = {};
+            this.showTorrents = false; this.relQuery = ''; this.relQuality = 'All'; this.relSort = 'seeds';
+        },
+        closeModal() { this.selected = null; this.showTorrents = false; },
+        closeTorrentsPanel() { this.showTorrents = false; },
         fmtSize(b) {
             if (!b) return '—';
             const gb = b / 1e9;
@@ -230,6 +257,8 @@ const app = createApp({
         },
         async searchTorrents() {
             if (!this.selected) return;
+            this.showTorrents = true;
+            this.relQuery = ''; this.relQuality = 'All'; this.relSort = 'seeds';
             this.searching = true;
             this.releases = null;
             try {
@@ -921,75 +950,157 @@ const app = createApp({
     </main>
 
     <div class="modal-backdrop" v-if="selected" @click.self="closeModal">
-        <div class="modal">
-            <div class="modal-banner">
-                <img v-if="selected.banner || selected.poster" :src="selected.banner || selected.poster" alt="">
-                <div class="modal-grad"></div>
-                <button class="modal-close" @click="closeModal" :title="t('close')"><icon name="close"></icon></button>
-                <div class="modal-head">
-                    <h2>{{ selected.series }}</h2>
-                    <div class="modal-badges">
-                        <span class="badge se">S{{ pad(selected.season) }}E{{ pad(selected.episode) }}</span>
-                        <span class="badge" :class="'status-' + statusKey(selected)">{{ statusLabel(selected) }}</span>
-                        <span class="modal-eptitle" v-if="selected.episodeTitle">{{ selected.episodeTitle }}</span>
-                    </div>
+        <div class="modal modal-fiche" :class="{ 'with-torrents': showTorrents }">
+            <div class="fiche-bg" :style="selected.poster ? { backgroundImage: 'url(' + selected.poster + ')' } : null"></div>
+            <div class="fiche-tint"></div>
+            <div class="fiche-inner">
+                <div class="fiche-banner">
+                    <button class="modal-close fiche-close" @click="closeModal" :title="t('close')"><icon name="close"></icon></button>
                 </div>
-            </div>
-            <div class="modal-body">
-                <div class="modal-meta">
-                    <span v-if="selected.network" class="meta-item">{{ selected.network }}</span>
-                    <span v-if="selected.year" class="meta-item">{{ selected.year }}</span>
-                    <span v-if="selected.runtime" class="meta-item">{{ selected.runtime }} {{ t('min') }}</span>
-                    <span v-if="selected.time" class="meta-item"><icon name="schedule"></icon> {{ selected.time }}</span>
-                    <span v-if="selected.rating" class="meta-item meta-rating"><icon name="star"></icon> {{ selected.rating.toFixed(1) }}</span>
-                    <span v-if="selected.certification" class="meta-item meta-cert">{{ selected.certification }}</span>
-                </div>
-                <div class="modal-genres" v-if="selected.genres && selected.genres.length">
-                    <span class="genre" v-for="g in selected.genres.slice(0, 4)" :key="g">{{ g }}</span>
-                </div>
-                <p class="modal-overview" v-if="selected.overview">{{ selected.overview }}</p>
-                <div class="modal-actions">
-                    <button v-if="selected.hasFile" class="btn btn-play" @click="play(selected)">
-                        <icon name="play"></icon> {{ t('play_mpc') }}
-                    </button>
-                    <button class="btn btn-watch" :class="{ on: isWatched(selected) }" @click="toggle(selected)">
-                        <icon name="check"></icon> {{ isWatched(selected) ? t('watched') : t('mark_watched') }}
-                    </button>
-                    <a v-if="sonarrUrl && selected.seriesSlug" class="btn btn-sonarr"
-                       :href="sonarrUrl + '/series/' + selected.seriesSlug" target="_blank" rel="noopener"
-                       :title="t('open_in_sonarr')">
-                        <icon name="external"></icon> Sonarr
-                    </a>
-                </div>
-
-                <div class="torrent-search">
-                    <button class="btn btn-search" @click="searchTorrents" :disabled="searching">
-                        <icon name="search"></icon> {{ searching ? t('searching_torrents') : t('search_torrents') }}
-                    </button>
-                    <div class="torrent-results" v-if="releases !== null">
-                        <p v-if="releases.length === 0" class="torrent-empty">{{ t('torrents_search_empty') }}</p>
-                        <table v-else class="torrent-table">
-                            <thead><tr>
-                                <th>{{ t('th_title') }}</th><th>{{ t('th_indexer') }}</th><th>{{ t('th_quality') }}</th><th>{{ t('th_size') }}</th><th>{{ t('th_seed') }}</th><th>{{ t('th_age') }}</th><th></th>
-                            </tr></thead>
-                            <tbody>
-                                <tr v-for="r in releases" :key="r.guid" :class="{ rejected: r.rejected }">
-                                    <td class="t-title" :title="(r.rejections && r.rejections.length) ? r.rejections.join(' · ') : r.title"><a v-if="r.infoUrl" :href="r.infoUrl" target="_blank" rel="noopener" class="t-link">{{ r.title }}</a><template v-else>{{ r.title }}</template></td>
-                                    <td class="t-idx">{{ r.indexer }}</td>
-                                    <td><span class="q-badge" :class="qBadge(r.quality)">{{ r.quality }}</span></td>
-                                    <td class="t-nowrap">{{ fmtSize(r.size) }}</td>
-                                    <td><span class="seed" :class="seedClass(r.seeders)">{{ r.seeders }}</span></td>
-                                    <td class="t-nowrap">{{ r.age }}{{ t('u_d') }}</td>
-                                    <td>
-                                        <button class="grab-btn" :class="grabbed[r.guid]" @click="grab(r)"
-                                                :disabled="grabbed[r.guid]==='wait' || grabbed[r.guid]==='ok'"
-                                                :title="grabbed[r.guid]==='ok' ? t('grab_sent_sonarr') : (grabbed[r.guid]==='err' ? t('failed') : t('download_verb'))">
-                                            <icon :name="grabbed[r.guid]==='ok' ? 'check' : (grabbed[r.guid]==='err' ? 'close' : 'download')"></icon>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="fiche-grid">
+                    <aside class="fiche-side">
+                        <div class="fiche-jacket">
+                            <img v-if="selected.poster || selected.banner" :src="selected.poster || selected.banner" :alt="selected.series">
+                            <div class="fiche-jacket-grad"></div>
+                            <div class="fiche-jacket-badges">
+                                <span class="fiche-se">S{{ pad(selected.season) }}E{{ pad(selected.episode) }}</span>
+                                <span v-if="isWatched(selected)" class="fiche-watched-tag">{{ t('watched') }}</span>
+                            </div>
+                        </div>
+                    </aside>
+                    <div class="fiche-main">
+                        <div class="fiche-panel fiche-panel-a" :class="{ off: showTorrents }" :inert="showTorrents">
+                            <div class="fiche-chips-row">
+                                <span class="fiche-title-strong">{{ selected.series }}</span>
+                                <span class="fiche-chip" v-if="selected.year"><icon name="schedule"></icon> {{ selected.year }}</span>
+                                <span class="fiche-chip" v-if="selected.runtime"><icon name="schedule"></icon> {{ selected.runtime }} {{ t('min') }}</span>
+                                <span class="fiche-chip" v-if="selected.time">{{ selected.time }}</span>
+                                <span class="fiche-chip fiche-chip-rating" v-if="selected.rating"><icon name="star"></icon> {{ selected.rating.toFixed(1) }}</span>
+                                <span class="fiche-chip fiche-chip-cert" v-if="selected.certification">{{ selected.certification }}</span>
+                            </div>
+                            <h3 class="fiche-ep-title">
+                                <span class="fiche-ep-prefix">{{ t('ep_prefix') }} {{ selected.episode }} :</span>
+                                <span v-if="selected.episodeTitle" class="fiche-ep-name">{{ selected.episodeTitle }}</span>
+                            </h3>
+                            <div class="fiche-genres" v-if="selected.genres && selected.genres.length">
+                                <span class="fiche-genre" v-for="g in selected.genres.slice(0, 4)" :key="g">{{ g }}</span>
+                            </div>
+                            <p class="fiche-overview" v-if="selected.overview">{{ selected.overview }}</p>
+                            <div class="fiche-actions">
+                                <button v-if="selected.hasFile" class="fiche-btn fiche-btn-play" @click="play(selected)">
+                                    <icon name="play"></icon> <span>{{ t('play_mpc') }}</span>
+                                </button>
+                                <button class="fiche-btn fiche-btn-watch" :class="{ on: isWatched(selected) }" @click="toggle(selected)">
+                                    <icon name="check"></icon> <span>{{ isWatched(selected) ? t('watched') : t('mark_watched') }}</span>
+                                </button>
+                                <a v-if="sonarrUrl && selected.seriesSlug" class="fiche-btn fiche-btn-sonarr"
+                                   :href="sonarrUrl + '/series/' + selected.seriesSlug" target="_blank" rel="noopener"
+                                   :title="t('open_in_sonarr')">
+                                    <icon name="external"></icon> <span>Sonarr</span>
+                                </a>
+                            </div>
+                            <button class="fiche-torrents-cta" @click="searchTorrents">
+                                <div class="fiche-torrents-cta-icon"><icon name="search"></icon></div>
+                                <span class="fiche-torrents-cta-title">{{ t('search_torrents') }}</span>
+                                <span class="fiche-torrents-cta-arrow"><icon name="chevron_right"></icon></span>
+                            </button>
+                        </div>
+                        <div class="fiche-panel fiche-panel-b" :class="{ on: showTorrents }" :inert="!showTorrents">
+                            <div class="fiche-tor-head">
+                                <button class="fiche-back-btn" @click="closeTorrentsPanel">
+                                    <icon name="chevron_left"></icon>
+                                    <span>{{ t('back_episode') }}</span>
+                                </button>
+                                <span class="fiche-tor-status" :class="{ loading: searching }">
+                                    <span class="fiche-tor-dot"></span>
+                                    {{ searching ? t('searching_torrents') : t('n_results_found', { n: filteredReleases.length }) }}
+                                </span>
+                            </div>
+                            <div class="fiche-tor-filters">
+                                <label class="fiche-tor-search">
+                                    <icon name="search"></icon>
+                                    <input type="text" v-model="relQuery" :placeholder="t('filter_release_name')" :disabled="searching">
+                                </label>
+                                <div class="fiche-tor-controls">
+                                    <div class="fiche-tor-qual">
+                                        <button v-for="q in ['All', '2160p', '1080p', '720p']" :key="q"
+                                            :class="{ on: relQuality === q }"
+                                            :disabled="searching"
+                                            @click="relQuality = q">{{ q }}</button>
+                                    </div>
+                                    <button class="fiche-tor-sort"
+                                        :disabled="searching"
+                                        @click="relSort = (relSort === 'seeds' ? 'size' : 'seeds')">
+                                        <icon name="sync"></icon>
+                                        <span>{{ relSort === 'seeds' ? t('sort_seeders') : t('sort_size') }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="fiche-tor-table-wrap">
+                                <table class="fiche-tor-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ t('th_title') }}</th>
+                                            <th>{{ t('th_quality') }}</th>
+                                            <th class="num">{{ t('th_size') }}</th>
+                                            <th class="num">{{ t('th_seed') }}</th>
+                                            <th class="num age-col">{{ t('th_age') }}</th>
+                                            <th class="dl-col">DL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody v-if="searching" class="fiche-skel">
+                                        <tr v-for="i in 5" :key="'sk' + i">
+                                            <td>
+                                                <div class="fiche-sk fiche-sk-line w-80"></div>
+                                                <div class="fiche-sk fiche-sk-line w-30 sm"></div>
+                                            </td>
+                                            <td><div class="fiche-sk fiche-sk-badge"></div></td>
+                                            <td class="num"><div class="fiche-sk fiche-sk-line w-50 r"></div></td>
+                                            <td class="num"><div class="fiche-sk fiche-sk-line w-30 r"></div></td>
+                                            <td class="num age-col"><div class="fiche-sk fiche-sk-line w-30 r"></div></td>
+                                            <td class="dl-col"><div class="fiche-sk fiche-sk-btn"></div></td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody v-else>
+                                        <tr v-if="filteredReleases.length === 0">
+                                            <td colspan="6" class="fiche-tor-empty">
+                                                <icon name="schedule"></icon>
+                                                <span>{{ t('torrents_search_empty') }}</span>
+                                            </td>
+                                        </tr>
+                                        <template v-else>
+                                            <tr v-for="r in filteredReleases" :key="r.guid" :class="{ rejected: r.rejected }">
+                                                <td class="fiche-tor-title">
+                                                    <a v-if="r.infoUrl" :href="r.infoUrl" target="_blank" rel="noopener" class="fiche-tor-name" :title="(r.rejections && r.rejections.length) ? r.rejections.join(' · ') : r.title">{{ r.title }}</a>
+                                                    <span v-else class="fiche-tor-name" :title="(r.rejections && r.rejections.length) ? r.rejections.join(' · ') : r.title">{{ r.title }}</span>
+                                                    <span class="fiche-tor-idx">{{ r.indexer }}</span>
+                                                </td>
+                                                <td><span class="q-badge" :class="qBadge(r.quality)">{{ r.quality }}</span></td>
+                                                <td class="num t-nowrap">{{ fmtSize(r.size) }}</td>
+                                                <td class="num"><span class="fiche-seed" :class="seedClass(r.seeders)">{{ r.seeders }}</span></td>
+                                                <td class="num age-col t-nowrap">{{ r.age }}{{ t('u_d') }}</td>
+                                                <td class="dl-col">
+                                                    <button class="fiche-dl-btn" :class="grabbed[r.guid]" @click="grab(r)"
+                                                        :disabled="grabbed[r.guid]==='wait' || grabbed[r.guid]==='ok'"
+                                                        :title="grabbed[r.guid]==='ok' ? t('grab_sent_sonarr') : (grabbed[r.guid]==='err' ? t('failed') : t('download_verb'))">
+                                                        <icon :name="grabbed[r.guid]==='ok' ? 'check' : (grabbed[r.guid]==='err' ? 'close' : 'download')"></icon>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="fiche-tor-foot">
+                                <span class="fiche-tor-foot-l">
+                                    <template v-if="searching">
+                                        <icon name="sync" class="spin"></icon>
+                                        <span>{{ t('querying_indexers') }}</span>
+                                    </template>
+                                </span>
+                                <span>{{ t('prowlarr_connected_short') }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -62,6 +62,10 @@ const MESSAGES = {
         alert_sync_started: "Sync started — the enabled indexers will appear in Sonarr/Radarr.",
         alert_indexer_added: "{name} added.", alert_indexer_add_failed: "Failed to add {name}:\n{msg}\n\n(private indexers must be configured in Prowlarr)",
         alert_failed: "Failed: {msg}",
+        meta_platform: "Platform", ep_prefix: "Episode",
+        n_releases_avail: "{n} available", back_episode: "Episode info", n_results_found: "{n} results found",
+        filter_release_name: "Filter by name…", sort_seeders: "Seeders", sort_size: "Size",
+        querying_indexers: "Querying indexers…", prowlarr_connected_short: "Prowlarr connected",
     },
     fr: {
         nav_calendar: "Calendrier", nav_films: "Films", nav_torrents: "Torrents", nav_prowlarr: "Prowlarr",
@@ -110,6 +114,10 @@ const MESSAGES = {
         alert_sync_started: "Synchronisation lancée — les indexeurs activés vont apparaître dans Sonarr/Radarr.",
         alert_indexer_added: "{name} ajouté.", alert_indexer_add_failed: "Échec de l'ajout de {name} :\n{msg}\n\n(les indexeurs privés doivent être configurés dans Prowlarr)",
         alert_failed: "Échec : {msg}",
+        meta_platform: "Plateforme", ep_prefix: "Épisode",
+        n_releases_avail: "{n} disponibles", back_episode: "Fiche Épisode", n_results_found: "{n} résultats trouvés",
+        filter_release_name: "Filtrer par nom…", sort_seeders: "Seeders", sort_size: "Taille",
+        querying_indexers: "Interrogation des indexeurs…", prowlarr_connected_short: "Prowlarr connecté",
     },
     es: {
         nav_calendar: "Calendario", nav_films: "Películas", nav_torrents: "Torrents", nav_prowlarr: "Prowlarr",
@@ -158,6 +166,10 @@ const MESSAGES = {
         alert_sync_started: "Sincronización iniciada — los indexadores activados aparecerán en Sonarr/Radarr.",
         alert_indexer_added: "{name} añadido.", alert_indexer_add_failed: "Error al añadir {name}:\n{msg}\n\n(los indexadores privados deben configurarse en Prowlarr)",
         alert_failed: "Error: {msg}",
+        meta_platform: "Plataforma", ep_prefix: "Episodio",
+        n_releases_avail: "{n} disponibles", back_episode: "Ficha episodio", n_results_found: "{n} resultados encontrados",
+        filter_release_name: "Filtrar por nombre…", sort_seeders: "Seeders", sort_size: "Tamaño",
+        querying_indexers: "Consultando indexadores…", prowlarr_connected_short: "Prowlarr conectado",
     },
     de: {
         nav_calendar: "Kalender", nav_films: "Filme", nav_torrents: "Torrents", nav_prowlarr: "Prowlarr",
@@ -206,6 +218,10 @@ const MESSAGES = {
         alert_sync_started: "Synchronisierung gestartet — die aktivierten Indexer erscheinen in Sonarr/Radarr.",
         alert_indexer_added: "{name} hinzugefügt.", alert_indexer_add_failed: "Hinzufügen von {name} fehlgeschlagen:\n{msg}\n\n(private Indexer müssen in Prowlarr konfiguriert werden)",
         alert_failed: "Fehler: {msg}",
+        meta_platform: "Plattform", ep_prefix: "Folge",
+        n_releases_avail: "{n} verfügbar", back_episode: "Folgendetails", n_results_found: "{n} Treffer gefunden",
+        filter_release_name: "Nach Name filtern…", sort_seeders: "Seeder", sort_size: "Größe",
+        querying_indexers: "Indexer werden abgefragt…", prowlarr_connected_short: "Prowlarr verbunden",
     },
     pt: {
         nav_calendar: "Calendário", nav_films: "Filmes", nav_torrents: "Torrents", nav_prowlarr: "Prowlarr",
@@ -254,6 +270,10 @@ const MESSAGES = {
         alert_sync_started: "Sincronização iniciada — os indexadores ativados aparecerão no Sonarr/Radarr.",
         alert_indexer_added: "{name} adicionado.", alert_indexer_add_failed: "Falha ao adicionar {name}:\n{msg}\n\n(indexadores privados devem ser configurados no Prowlarr)",
         alert_failed: "Falha: {msg}",
+        meta_platform: "Plataforma", ep_prefix: "Episódio",
+        n_releases_avail: "{n} disponíveis", back_episode: "Ficha do episódio", n_results_found: "{n} resultados encontrados",
+        filter_release_name: "Filtrar por nome…", sort_seeders: "Seeders", sort_size: "Tamanho",
+        querying_indexers: "Consultando indexadores…", prowlarr_connected_short: "Prowlarr conectado",
     },
     ru: {
         nav_calendar: "Календарь", nav_films: "Фильмы", nav_torrents: "Торренты", nav_prowlarr: "Prowlarr",
@@ -302,6 +322,10 @@ const MESSAGES = {
         alert_sync_started: "Синхронизация запущена — включённые индексаторы появятся в Sonarr/Radarr.",
         alert_indexer_added: "{name} добавлен.", alert_indexer_add_failed: "Не удалось добавить {name}:\n{msg}\n\n(приватные индексаторы нужно настраивать в Prowlarr)",
         alert_failed: "Ошибка: {msg}",
+        meta_platform: "Платформа", ep_prefix: "Серия",
+        n_releases_avail: "{n} доступно", back_episode: "Карточка серии", n_results_found: "{n} результатов",
+        filter_release_name: "Фильтр по имени…", sort_seeders: "Сиды", sort_size: "Размер",
+        querying_indexers: "Запрос к индексаторам…", prowlarr_connected_short: "Prowlarr подключён",
     },
     ja: {
         nav_calendar: "カレンダー", nav_films: "映画", nav_torrents: "トレント", nav_prowlarr: "Prowlarr",
@@ -350,6 +374,10 @@ const MESSAGES = {
         alert_sync_started: "同期を開始しました — 有効なインデクサーが Sonarr/Radarr に表示されます。",
         alert_indexer_added: "{name} を追加しました。", alert_indexer_add_failed: "{name} の追加に失敗しました:\n{msg}\n\n(プライベートインデクサーは Prowlarr で設定する必要があります)",
         alert_failed: "失敗: {msg}",
+        meta_platform: "プラットフォーム", ep_prefix: "エピソード",
+        n_releases_avail: "{n} 件利用可能", back_episode: "エピソード詳細", n_results_found: "{n} 件の結果",
+        filter_release_name: "名前で絞り込み…", sort_seeders: "シード", sort_size: "サイズ",
+        querying_indexers: "インデクサーに問い合わせ中…", prowlarr_connected_short: "Prowlarr 接続済み",
     },
     ko: {
         nav_calendar: "캘린더", nav_films: "영화", nav_torrents: "토렌트", nav_prowlarr: "Prowlarr",
@@ -398,6 +426,10 @@ const MESSAGES = {
         alert_sync_started: "동기화 시작 — 활성화된 인덱서가 Sonarr/Radarr에 나타납니다.",
         alert_indexer_added: "{name} 추가됨.", alert_indexer_add_failed: "{name} 추가 실패:\n{msg}\n\n(비공개 인덱서는 Prowlarr에서 설정해야 합니다)",
         alert_failed: "실패: {msg}",
+        meta_platform: "플랫폼", ep_prefix: "에피소드",
+        n_releases_avail: "{n}개 이용 가능", back_episode: "에피소드 정보", n_results_found: "{n}개 결과",
+        filter_release_name: "이름으로 필터…", sort_seeders: "시드", sort_size: "크기",
+        querying_indexers: "인덱서 조회 중…", prowlarr_connected_short: "Prowlarr 연결됨",
     },
     zh: {
         nav_calendar: "日历", nav_films: "电影", nav_torrents: "种子", nav_prowlarr: "Prowlarr",
@@ -446,6 +478,10 @@ const MESSAGES = {
         alert_sync_started: "同步已开始 — 已启用的索引器将出现在 Sonarr/Radarr 中。",
         alert_indexer_added: "已添加 {name}。", alert_indexer_add_failed: "添加 {name} 失败：\n{msg}\n\n(私有索引器必须在 Prowlarr 中配置)",
         alert_failed: "失败：{msg}",
+        meta_platform: "平台", ep_prefix: "剧集",
+        n_releases_avail: "{n} 个可用", back_episode: "剧集详情", n_results_found: "{n} 个结果",
+        filter_release_name: "按名称筛选…", sort_seeders: "做种", sort_size: "大小",
+        querying_indexers: "正在查询索引器…", prowlarr_connected_short: "Prowlarr 已连接",
     },
 };
 
