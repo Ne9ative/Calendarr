@@ -347,6 +347,7 @@ func fatal(msg string) {
 // browser; right-click shows the menu (auto-start, terminal, close).
 func runTray(logPath, port string) {
 	const appName = "CalendarrServer"
+	_ = desktop.RefreshAutoStart(appName)
 	onReady := func() {
 		systray.SetIcon(iconBytes)
 		systray.SetTooltip("Calendarr — server (click to open the calendar)")

@@ -94,6 +94,7 @@ func main() {
 // right-click shows the menu (auto-start, close).
 func runTray() {
 	const appName = "CalendarrClient"
+	_ = desktop.RefreshAutoStart(appName)
 	iconBytes, _ := iconFS.ReadFile("icon.ico")
 	onReady := func() {
 		systray.SetIcon(iconBytes)

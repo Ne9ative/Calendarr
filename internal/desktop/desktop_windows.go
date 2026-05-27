@@ -59,6 +59,17 @@ func SetAutoStartPath(name, exePath string, enabled bool) error {
 	return k.SetStringValue(name, `"`+exePath+`"`)
 }
 
+// RefreshAutoStart re-syncs the auto-start registry entry to the current
+// executable path, if auto-start is enabled. No-op if it is disabled. Lets the
+// user move or rebuild the .exe transparently: the next launch updates the
+// entry, so a stale path is healed without any manual action.
+func RefreshAutoStart(name string) error {
+	if !AutoStartEnabled(name) {
+		return nil
+	}
+	return SetAutoStart(name, true)
+}
+
 // OpenBrowser opens a URL in the default browser.
 func OpenBrowser(url string) {
 	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
