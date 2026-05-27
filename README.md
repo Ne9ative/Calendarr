@@ -126,6 +126,12 @@ Command-line flags override the config file — run `server.exe -h` for the full
 
 Calendarr is a **controller and viewer** for software you install and run yourself. Like Sonarr, Radarr, and the rest of the *arr ecosystem, it **does not host, provide, or distribute any media** — it only talks to the tools already on your own machines. You are responsible for how you use it and for complying with the laws in your country.
 
+## Antivirus false positives
+
+Calendarr ships as an unsigned Go binary. Like many open-source Go projects on Windows ([golang/go#35775](https://github.com/golang/go/issues/35775)), it can be flagged by a handful of antivirus engines — at last check, **4/71 on VirusTotal**, all from machine-learning heuristics (`Wacatac.B!ml`, `malicious_confidence_*`) rather than real signature matches.
+
+The source is fully public and auditable. If you'd rather not take that on faith, paste the repo into your LLM of choice and ask it to walk through what the binary actually does — it's a quick sanity check. A proper code signature will be added in a future release.
+
 ## Contributing
 
 Issues and pull requests are welcome. This is a personal project shared in the hope that it's useful, so responses may be slow — but well-scoped fixes and reports are appreciated.
