@@ -124,9 +124,6 @@ type server struct {
 
 	mu    sync.Mutex
 	queue map[int]queueProg // episodeId -> progress of the active download
-
-	setupMu    sync.Mutex
-	setupState map[string]string // auto-setup outcomes the UI may act on, e.g. "sonarr.downloadClient" -> "auth-failed"
 }
 
 func main() {
@@ -291,7 +288,7 @@ func main() {
 		}
 	}
 
-	srv := &server{sc: sc, st: st, loc: loc, hub: newHub(), qb: qb, pr: pr, rd: rd, bz: bz, queue: map[int]queueProg{}, shareURL: shareURL, sonarrWeb: sonarrWeb, radarrWeb: radarrWeb, qbitDet: qbitDet, qbitURL: qbitURLv, cfgPath: cfgPath, setupState: map[string]string{}}
+	srv := &server{sc: sc, st: st, loc: loc, hub: newHub(), qb: qb, pr: pr, rd: rd, bz: bz, queue: map[int]queueProg{}, shareURL: shareURL, sonarrWeb: sonarrWeb, radarrWeb: radarrWeb, qbitDet: qbitDet, qbitURL: qbitURLv, cfgPath: cfgPath}
 
 	if *dev {
 		// Design mode: serve the web/ folder as-is from disk.
@@ -308,8 +305,6 @@ func main() {
 		http.Handle("/", noCache(http.FileServer(http.FS(web.FS))))
 	}
 	http.HandleFunc("/api/status", srv.handleStatus)
-	http.HandleFunc("/api/setup/status", srv.handleSetupStatus)
-	http.HandleFunc("/api/setup/apply", srv.handleSetupApply)
 	// Sonarr routes: guarded by needSonarr, returning a clean 503 if Sonarr is
 	// absent (instead of crashing). The UI relies on /api/status to display a
 	// "Sonarr not installed" message rather than calling these routes.
@@ -353,9 +348,6 @@ func main() {
 		go srv.pollQueue()
 		go srv.registerWebhook(*addr)
 	}
-	// Best-effort: wire qBittorrent into Sonarr/Radarr if they have no download
-	// client yet (checks service nils + qBit detection internally).
-	go srv.autoSetup()
 	go func() {
 		// Continuous LAN beacon: lets client.exe (on another PC) find this
 		// server on its own and open the calendar.
@@ -389,7 +381,7 @@ func main() {
 		log.Printf("playback helper not started (%s already in use): %v", *helperAddr, err)
 	}
 
-	log.Printf("Calendarr server ready: http://localhost%s", *addr)
+	log.Printf("Calendarr server ready — http://localhost%s", *addr)
 	if shareURL != "" {
 		log.Printf("LAN share (give this to others): %s", shareURL)
 	}
@@ -800,9 +792,6 @@ func (s *server) handleQbitConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.saveQbitConfig(s.qbitURL, user, body.Password)
-	// Password now known: retry wiring qBittorrent into Sonarr/Radarr in case
-	// the startup attempt failed on authentication.
-	go s.autoSetup()
 	writeJSON(w, map[string]any{"connected": true})
 }
 
