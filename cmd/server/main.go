@@ -309,6 +309,7 @@ func main() {
 	}
 	http.HandleFunc("/api/status", srv.handleStatus)
 	http.HandleFunc("/api/setup/status", srv.handleSetupStatus)
+	http.HandleFunc("/api/setup/apply", srv.handleSetupApply)
 	// Sonarr routes: guarded by needSonarr, returning a clean 503 if Sonarr is
 	// absent (instead of crashing). The UI relies on /api/status to display a
 	// "Sonarr not installed" message rather than calling these routes.

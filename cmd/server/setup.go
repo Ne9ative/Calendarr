@@ -15,8 +15,10 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 // autoSetup wires qBittorrent into Sonarr and Radarr when they have no download
@@ -120,13 +122,93 @@ func (s *server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 		"sonarr": map[string]any{
 			"configured":          s.sc != nil,
 			"downloadClientError": state["sonarr.downloadClient"],
+			"needsRootFolder":     s.rootFolderMissing("sonarr"),
 		},
 		"radarr": map[string]any{
 			"configured":          s.rd != nil,
 			"downloadClientError": state["radarr.downloadClient"],
+			"needsRootFolder":     s.rootFolderMissing("radarr"),
 		},
 		"qbit": map[string]any{
 			"installed": s.qbitDet.Installed,
 		},
 	})
+}
+
+// rootFolderMissing reports whether a service is reachable but has no root
+// folder configured (so the user cannot add/import media yet).
+func (s *server) rootFolderMissing(service string) bool {
+	switch service {
+	case "sonarr":
+		if s.sc == nil {
+			return false
+		}
+		rfs, err := s.sc.RootFolderPaths()
+		return err == nil && len(rfs) == 0
+	case "radarr":
+		if s.rd == nil {
+			return false
+		}
+		rfs, err := s.rd.RootFolderPaths()
+		return err == nil && len(rfs) == 0
+	}
+	return false
+}
+
+// handleSetupApply applies a path-dependent setup step the user confirmed in a
+// banner: a root folder for Sonarr/Radarr, or qBittorrent's download folder.
+func (s *server) handleSetupApply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Action  string `json:"action"`
+		Service string `json:"service"`
+		Path    string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	path := strings.TrimSpace(body.Path)
+	if path == "" {
+		http.Error(w, "path required", http.StatusBadRequest)
+		return
+	}
+
+	switch body.Action {
+	case "rootfolder":
+		var err error
+		switch body.Service {
+		case "sonarr":
+			if s.sc == nil {
+				http.Error(w, "Sonarr not configured", http.StatusServiceUnavailable)
+				return
+			}
+			_, err = s.sc.EnsureRootFolder(path)
+		case "radarr":
+			if s.rd == nil {
+				http.Error(w, "Radarr not configured", http.StatusServiceUnavailable)
+				return
+			}
+			_, err = s.rd.EnsureRootFolder(path)
+		default:
+			http.Error(w, "unknown service", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	case "qbitpaths":
+		if err := s.qb.SetDownloadPaths(path, ""); err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	default:
+		http.Error(w, "unknown action", http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
