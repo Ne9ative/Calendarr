@@ -11,3 +11,15 @@
 /vendor/
 go.work
 go.work.sum
+
+# Local runtime, credentials and scratch — never publish (match in any folder)
+config.json
+calendarr.db
+*.log
+
+# Personal-only installer (not part of the public release)
+/internal/installer/
+
+# Local scratch notes / reference assets
+/saison.jpg
+/.[Ii]dée.txt

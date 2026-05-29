@@ -22,6 +22,11 @@ const ICONS = {
     settings: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
     storage: 'M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z',
     sync: 'M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z',
+    eye: 'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z',
+    eye_off: 'M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z',
+    warning: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+    lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+    expand_more: 'M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z',
 };
 
 const app = createApp({
@@ -39,14 +44,15 @@ const app = createApp({
             // Service availability (populated by /api/status). Defaults to true so
             // nothing is hidden while the status is still loading. (qBittorrent is
             // not listed here: the Torrents page relies directly on /api/torrents.)
-            services: { sonarr: true, radarr: true, prowlarr: true, bazarr: true },
+            services: { sonarr: true, radarr: true, prowlarr: true },
             setupStatus: null, setupActions: [],
+            toasts: [], _toastSeq: 0,
+            antiSpoiler: localStorage.getItem('antiSpoiler') === 'true',
             tabs: [
                 { id: 'calendar', key: 'nav_calendar' },
                 { id: 'films', key: 'nav_films' },
                 { id: 'torrents', key: 'nav_torrents' },
                 { id: 'prowlarr', key: 'nav_prowlarr' },
-                { id: 'subtitles', key: 'nav_subtitles' },
             ],
             lang: (window.detectLocale ? window.detectLocale() : 'en'),
             langs: (window.LANGS || []),
@@ -59,8 +65,9 @@ const app = createApp({
             schemaList: null, schemaQuery: '', schemaOpen: false, addingIndexer: '',
             films: [], filmsLoading: false, filmsError: '', radarrUrl: '',
             selectedFilm: null, filmReleases: null, filmSearching: false, filmGrabbed: {},
-            bazarrLoading: false, bazarrError: '', bazarrData: null,
-            showSubs: false, epSubsLoading: false, epSubsCurrent: null, epSubsSearching: false, epSubsResults: null, epSubDownloading: {},
+            filmShowTorrents: false, filmRelQuery: '', filmRelQuality: 'All', filmRelSort: 'seeds',
+            // All-episodes (seasons) panel inside the modal.
+            showEpisodes: false, episodesLoading: false, allEpisodes: null, currentSeason: null, expandedEp: null,
             progress: {}, liveProgress: false, ws: null,
         };
     },
@@ -87,6 +94,23 @@ const app = createApp({
         diskClass() {
             const p = this.diskUsedPct;
             return p >= 90 ? 'disk-crit' : (p >= 75 ? 'disk-warn' : 'disk-ok');
+        },
+        // Persistent low-space warning: under 500 MB free on the import disk.
+        lowDisk() {
+            return !!(this.disk && this.disk.total && this.disk.free < 500 * 1024 * 1024);
+        },
+        // Distinct season numbers of the loaded series, ascending.
+        seasons() {
+            if (!this.allEpisodes) return [];
+            const set = new Set(this.allEpisodes.map((e) => e.season));
+            return [...set].sort((a, b) => a - b);
+        },
+        // Episodes of the currently selected season, in order.
+        seasonEpisodes() {
+            if (!this.allEpisodes) return [];
+            return this.allEpisodes
+                .filter((e) => e.season === this.currentSeason)
+                .sort((a, b) => a.episode - b.episode);
         },
         weeks() {
             if (!this.year) return [];
@@ -132,6 +156,24 @@ const app = createApp({
             }
             return arr.slice().sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
         },
+        filmFilteredReleases() {
+            if (!this.filmReleases) return [];
+            const q = this.filmRelQuery.trim().toLowerCase();
+            const quality = this.filmRelQuality;
+            const arr = this.filmReleases.filter((r) => {
+                if (q) {
+                    const inTitle = (r.title || '').toLowerCase().includes(q);
+                    const inIdx = (r.indexer || '').toLowerCase().includes(q);
+                    if (!inTitle && !inIdx) return false;
+                }
+                if (quality !== 'All') {
+                    if (!(r.quality || '').toLowerCase().includes(quality.toLowerCase())) return false;
+                }
+                return true;
+            });
+            if (this.filmRelSort === 'size') return arr.slice().sort((a, b) => (b.size || 0) - (a.size || 0));
+            return arr.slice().sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
+        },
         filteredSchema() {
             if (!this.schemaList) return [];
             const q = this.schemaQuery.trim().toLowerCase();
@@ -172,7 +214,7 @@ const app = createApp({
         dl(ep) {
             if (this.liveProgress) return this.progress[ep.episodeId] || null;
             if (ep.downloadStatus) {
-                return { status: ep.downloadStatus, percent: ep.downloadPercent, timeleft: ep.downloadTimeleft };
+                return { status: ep.downloadStatus, percent: ep.downloadPercent, timeleft: ep.downloadTimeleft, message: ep.downloadMessage };
             }
             return null;
         },
@@ -188,6 +230,32 @@ const app = createApp({
             return ep.hasFile ? this.t('status_available') : this.t('status_upcoming');
         },
         noop() {},
+        // --- Toasts (replace native alert popups) ---
+        toast(message, type = 'info', timeout = 4500) {
+            const id = ++this._toastSeq;
+            this.toasts.push({ id, message, type });
+            if (timeout) setTimeout(() => this.dismissToast(id), timeout);
+            return id;
+        },
+        dismissToast(id) {
+            const i = this.toasts.findIndex((t) => t.id === id);
+            if (i >= 0) this.toasts.splice(i, 1);
+        },
+        // Format a release age: shows hours/minutes when it is under a day old,
+        // otherwise the day count (Sonarr/Radarr give ageHours & ageMinutes).
+        fmtAge(r) {
+            const days = r.age || 0;
+            if (days >= 1) return days + this.t('u_d');
+            const hours = r.ageHours || 0;
+            if (hours >= 1) return Math.floor(hours) + this.t('u_h');
+            const mins = Math.max(0, Math.round(r.ageMinutes || hours * 60));
+            return mins + this.t('u_min');
+        },
+        // Episode runtime as MM:SS (seconds always 00) — matches the season list mock.
+        fmtEpRuntime(min) {
+            if (!min) return '??:??';
+            return this.pad(min) + ':00';
+        },
         async loadDisk() {
             try { this.disk = await (await fetch('/api/diskspace')).json(); } catch (e) { this.disk = null; }
         },
@@ -229,6 +297,10 @@ const app = createApp({
             return gb >= 1024 ? (gb / 1024).toFixed(2) + ' To' : gb.toFixed(1) + ' Go';
         },
         saveAutoScroll() { localStorage.setItem('autoScroll', this.autoScroll); if (this.autoScroll) this.scrollToToday(); },
+        saveAntiSpoiler() { localStorage.setItem('antiSpoiler', this.antiSpoiler); },
+        // Should this episode's title/synopsis be blurred? Anti-spoiler hides
+        // details of episodes the user hasn't watched yet.
+        spoil(ep, watched) { return this.antiSpoiler && !watched; },
         saveWatchUnmonitored() {
             localStorage.setItem('watchUnmonitored', this.watchUnmonitored);
             this.load(this.year, this.month, false);
@@ -263,7 +335,6 @@ const app = createApp({
             if (id === 'torrents') this.loadTorrents();
             else if (id === 'prowlarr') this.loadProwlarr();
             else if (id === 'films') this.loadFilms();
-            else if (id === 'subtitles') this.loadBazarr();
         },
         goHome() {
             this.view = 'calendar';
@@ -273,11 +344,11 @@ const app = createApp({
             this.selected = ep;
             this.releases = null; this.searching = false; this.grabbed = {};
             this.showTorrents = false; this.relQuery = ''; this.relQuality = 'All'; this.relSort = 'seeds';
-            this.showSubs = false; this.epSubsCurrent = null; this.epSubsResults = null; this.epSubDownloading = {};
+            this.showEpisodes = false; this.allEpisodes = null; this.currentSeason = null; this.expandedEp = null;
         },
-        closeModal() { this.selected = null; this.showTorrents = false; this.showSubs = false; },
+        closeModal() { this.selected = null; this.showTorrents = false; this.showEpisodes = false; },
         closeTorrentsPanel() { this.showTorrents = false; },
-        closeSubsPanel() { this.showSubs = false; },
+        closeEpisodesPanel() { this.showEpisodes = false; },
         fmtSize(b) {
             if (!b) return '—';
             const gb = b / 1e9;
@@ -329,7 +400,7 @@ const app = createApp({
                 this.releases = (await r.json()).releases || [];
             } catch (e) {
                 this.releases = [];
-                alert(this.t('alert_search_failed_sonarr'));
+                this.toast(this.t('alert_search_failed_sonarr'), 'error');
             } finally {
                 this.searching = false;
             }
@@ -349,6 +420,77 @@ const app = createApp({
             } catch (e) {
                 this.grabbed[rel.guid] = 'err';
             }
+        },
+        // --- All episodes / seasons panel (modal) ---
+        async openAllEpisodes() {
+            if (!this.selected) return;
+            this.showEpisodes = true;
+            this.expandedEp = null;
+            // Open on the season of the episode that opened the modal.
+            this.currentSeason = this.selected.season;
+            if (this.allEpisodes) return; // already loaded for this series
+            this.episodesLoading = true;
+            try {
+                const r = await fetch('/api/series/' + this.selected.seriesId + '/episodes');
+                if (!r.ok) throw new Error('episodes');
+                this.allEpisodes = (await r.json()).episodes || [];
+                // Guard: if the opening season has no episodes, fall back to the first.
+                if (!this.seasons.includes(this.currentSeason) && this.seasons.length) {
+                    this.currentSeason = this.seasons[0];
+                }
+            } catch (e) {
+                this.allEpisodes = [];
+                this.toast(this.t('alert_episodes_failed'), 'error');
+            } finally {
+                this.episodesLoading = false;
+            }
+        },
+        // An episode has aired if its UTC air date is in the past. No date = upcoming.
+        epAired(ep) {
+            if (!ep.airDateUtc) return false;
+            return new Date(ep.airDateUtc).getTime() <= this.now;
+        },
+        // Source of truth = the per-episode flag from /api/series/{id}/episodes
+        // (reflects the whole watched DB), NOT this.watched, which only holds the
+        // episodes of the currently-fetched calendar month — otherwise old
+        // watched episodes show as unwatched here and toggles seem to "not save".
+        epWatched(ep) { return !!ep.watched; },
+        toggleEpExpand(ep) { this.expandedEp = this.expandedEp === ep.episodeId ? null : ep.episodeId; },
+        // Play an episode straight from the seasons list (same helper path as the calendar).
+        async playEp(ep) {
+            const name = this.safeName(ep.fileName || `${this.selected.series}.mkv`);
+            const fileUrl = `${location.protocol}//${location.host}/play/${ep.episodeId}/${encodeURIComponent(name)}`;
+            try {
+                const r = await fetch(`http://127.0.0.1:8788/play?url=${encodeURIComponent(fileUrl)}`);
+                if (!r.ok) throw new Error('helper');
+            } catch (e) { this.toast(this.t('alert_no_player'), 'error', 8000); }
+        },
+        // Toggle watched for an episode in the list, keeping allEpisodes + the
+        // shared watched set in sync.
+        async toggleEpWatched(ep) {
+            const next = !this.epWatched(ep);
+            this.watched = next ? [...this.watched, ep.episodeId] : this.watched.filter((id) => id !== ep.episodeId);
+            ep.watched = next;
+            try {
+                await fetch('/api/watched', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ episode_id: ep.episodeId, watched: next }),
+                });
+            } catch (e) {
+                this.watched = next ? this.watched.filter((id) => id !== ep.episodeId) : [...this.watched, ep.episodeId];
+                ep.watched = !next;
+            }
+        },
+        // The middle button: jump back to the episode card with this episode
+        // selected and run a torrent search for it.
+        searchEpForList(ep) {
+            this.selected = Object.assign({}, this.selected, {
+                episodeId: ep.episodeId, season: ep.season, episode: ep.episode,
+                episodeTitle: ep.episodeTitle, overview: ep.overview, hasFile: ep.hasFile,
+                runtime: ep.runtime || this.selected.runtime,
+            });
+            this.showEpisodes = false;
+            this.searchTorrents();
         },
         // --- Series search / add (Sonarr) ---
         onSeriesInput() {
@@ -428,7 +570,7 @@ const app = createApp({
             if (!this.addTarget) return;
             const isMovie = this.addType === 'movie';
             if (!this.addForm.rootFolderPath) {
-                alert(this.t('alert_no_root', { app: isMovie ? 'Radarr' : 'Sonarr' }));
+                this.toast(this.t('alert_no_root', { app: isMovie ? 'Radarr' : 'Sonarr' }), 'error', 8000);
                 return;
             }
             this.adding = true;
@@ -458,8 +600,8 @@ const app = createApp({
                 localStorage.setItem(isMovie ? 'addMovieDefaults' : 'addDefaults', JSON.stringify(this.addForm));
                 this.addTarget = null;
                 if (isMovie) { if (this.view === 'films') this.loadFilms(); } else { this.load(this.year, this.month); }
-                alert(isMovie ? this.t('alert_movie_added', { title }) : this.t('alert_series_added', { title }));
-            } catch (e) { alert(this.t('alert_add_failed', { msg: e.message })); }
+                this.toast(isMovie ? this.t('alert_movie_added', { title }) : this.t('alert_series_added', { title }), 'success');
+            } catch (e) { this.toast(this.t('alert_add_failed', { msg: e.message }), 'error'); }
             finally { this.adding = false; }
         },
         // --- Torrents (qBittorrent) ---
@@ -528,6 +670,19 @@ const app = createApp({
             if (b >= 1e6) return (b / 1e6).toFixed(1) + ' Mo/s';
             return (b / 1e3).toFixed(0) + ' Ko/s';
         },
+        // A torrent is "done" (fully downloaded) when at 100%. Such a file can be
+        // played directly, even if Sonarr never imported/moved it.
+        torrentDone(tr) { return (tr.progress || 0) >= 0.999; },
+        // Open a completed torrent's file in MPC-BE via the local helper. Server
+        // resolves the actual on-disk path from qBittorrent by hash.
+        async playTorrent(tr) {
+            const name = this.safeName((tr.name || 'video') + '.mkv');
+            const fileUrl = `${location.protocol}//${location.host}/play/torrent/${tr.hash}/${encodeURIComponent(name)}`;
+            try {
+                const r = await fetch(`http://127.0.0.1:8788/play?url=${encodeURIComponent(fileUrl)}`);
+                if (!r.ok) throw new Error('helper');
+            } catch (e) { this.toast(this.t('alert_no_player'), 'error', 8000); }
+        },
         // --- Prowlarr ---
         async loadProwlarr() {
             if (!this.services.prowlarr) { this.indexers = []; return; }
@@ -546,10 +701,10 @@ const app = createApp({
                 const r = await fetch('/api/prowlarr/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app }) });
                 if (!r.ok) throw new Error((await r.text()) || 'erreur');
                 const d = await r.json();
-                alert(d.created ? this.t('alert_app_connected', { app }) : this.t('alert_app_already', { app }));
+                this.toast(d.created ? this.t('alert_app_connected', { app }) : this.t('alert_app_already', { app }), 'success');
                 this.connectOpen = false;
                 this.loadProwlarr();
-            } catch (e) { alert(this.t('alert_failed', { msg: e.message })); }
+            } catch (e) { this.toast(this.t('alert_failed', { msg: e.message }), 'error'); }
             finally { this.connecting = false; }
         },
         async syncApps() {
@@ -557,8 +712,8 @@ const app = createApp({
             try {
                 const r = await fetch('/api/prowlarr/sync', { method: 'POST' });
                 if (!r.ok) throw new Error((await r.text()) || 'erreur');
-                alert(this.t('alert_sync_started'));
-            } catch (e) { alert(this.t('alert_failed', { msg: e.message })); }
+                this.toast(this.t('alert_sync_started'), 'success');
+            } catch (e) { this.toast(this.t('alert_failed', { msg: e.message }), 'error'); }
             finally { this.connecting = false; }
         },
         async openAddIndexer() {
@@ -576,86 +731,11 @@ const app = createApp({
             try {
                 const r = await fetch('/api/prowlarr/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
                 if (!r.ok) throw new Error((await r.text()) || 'erreur');
-                alert(this.t('alert_indexer_added', { name }));
+                this.toast(this.t('alert_indexer_added', { name }), 'success');
                 this.schemaOpen = false;
                 this.loadProwlarr();
-            } catch (e) { alert(this.t('alert_indexer_add_failed', { name, msg: e.message })); }
+            } catch (e) { this.toast(this.t('alert_indexer_add_failed', { name, msg: e.message }), 'error', 8000); }
             finally { this.addingIndexer = ''; }
-        },
-        // --- Bazarr: per-episode subs (modal) ---
-        async openSubsPanel() {
-            if (!this.selected || !this.services.bazarr) return;
-            this.showSubs = true;
-            this.epSubsResults = null; this.epSubDownloading = {};
-            this.epSubsLoading = true;
-            try {
-                const r = await fetch(`/api/bazarr/episode/subs?seriesId=${this.selected.seriesId}&episodeId=${this.selected.episodeId}`);
-                if (r.ok) { const d = await r.json(); this.epSubsCurrent = d.subtitles || []; }
-                else { this.epSubsCurrent = []; }
-            } catch (e) { this.epSubsCurrent = []; }
-            finally { this.epSubsLoading = false; }
-        },
-        async searchSubs() {
-            if (!this.selected) return;
-            this.epSubsSearching = true; this.epSubsResults = null;
-            try {
-                const r = await fetch(`/api/bazarr/episode/search?episodeId=${this.selected.episodeId}`);
-                if (!r.ok) throw new Error(await r.text());
-                this.epSubsResults = (await r.json()).results || [];
-            } catch (e) {
-                this.epSubsResults = [];
-                alert(this.t('alert_subs_search_failed', { msg: e.message || '' }));
-            } finally { this.epSubsSearching = false; }
-        },
-        subKey(sub, idx) { return sub.subtitle || sub.url || ('idx' + idx); },
-        async downloadSub(sub, idx) {
-            const key = this.subKey(sub, idx);
-            const st = this.epSubDownloading[key];
-            if (st === 'wait' || st === 'ok') return;
-            this.epSubDownloading[key] = 'wait';
-            try {
-                const r = await fetch('/api/bazarr/episode/download', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ seriesId: this.selected.seriesId, episodeId: this.selected.episodeId, sub }),
-                });
-                if (!r.ok) throw new Error(await r.text());
-                this.epSubDownloading[key] = 'ok';
-                // Refresh the on-disk list so the user sees the new sub appear.
-                this.refreshSubsCurrent();
-            } catch (e) { this.epSubDownloading[key] = 'err'; }
-        },
-        async refreshSubsCurrent() {
-            if (!this.selected) return;
-            try {
-                const r = await fetch(`/api/bazarr/episode/subs?seriesId=${this.selected.seriesId}&episodeId=${this.selected.episodeId}`);
-                if (r.ok) { const d = await r.json(); this.epSubsCurrent = d.subtitles || []; }
-            } catch (e) {}
-        },
-        truthy(v) { return v === true || v === 'True' || v === 'true' || v === 1 || v === '1'; },
-        // --- Bazarr (subtitles) ---
-        async loadBazarr() {
-            if (!this.services.bazarr) { this.bazarrData = null; return; }
-            this.bazarrLoading = true; this.bazarrError = '';
-            try {
-                const r = await fetch('/api/bazarr/overview');
-                if (!r.ok) { this.bazarrError = (await r.text()) || this.t('bazarr_unreachable'); this.bazarrData = null; }
-                else { this.bazarrData = await r.json(); }
-            } catch (e) { this.bazarrError = String(e); this.bazarrData = null; }
-            finally { this.bazarrLoading = false; }
-        },
-        bazarrWantedCount() {
-            if (!this.bazarrData) return 0;
-            return (this.bazarrData.wantedEpisodesTotal || 0) + (this.bazarrData.wantedMoviesTotal || 0);
-        },
-        providerStatusCls(p) {
-            const s = (p.status || '').toLowerCase();
-            if (!s || s === 'good') return 'ok';
-            return 'err';
-        },
-        fmtScore(s) {
-            if (s === null || s === undefined) return '';
-            if (typeof s === 'string') return s;
-            return s + '%';
         },
         async prowlarrToggle(ix) {
             const enable = !ix.enable;
@@ -664,8 +744,8 @@ const app = createApp({
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: ix.id, enable }),
                 });
-                if (r.ok) ix.enable = enable; else alert(this.t('alert_failed', { msg: await r.text() }));
-            } catch (e) { alert(this.t('alert_failed', { msg: e.message })); }
+                if (r.ok) ix.enable = enable; else this.toast(this.t('alert_failed', { msg: await r.text() }), 'error');
+            } catch (e) { this.toast(this.t('alert_failed', { msg: e.message }), 'error'); }
         },
         async load(y, m, scroll = true) {
             if (!this.services.sonarr) { this.loading = false; return; }
@@ -710,15 +790,19 @@ const app = createApp({
             // client.exe helper (localhost:8788), which opens MPC-BE on the HTTP
             // URL of the file served by THIS server. location.host = the address
             // typed by the user → nothing hardcoded, works anywhere.
-            const name = ep.fileName || `${ep.series}.mkv`;
+            const name = this.safeName(ep.fileName || `${ep.series}.mkv`);
             const fileUrl = `${location.protocol}//${location.host}/play/${ep.episodeId}/${encodeURIComponent(name)}`;
             try {
                 const r = await fetch(`http://127.0.0.1:8788/play?url=${encodeURIComponent(fileUrl)}`);
                 if (!r.ok) throw new Error('helper');
             } catch (e) {
-                alert(this.t('alert_no_player'));
+                this.toast(this.t('alert_no_player'), 'error', 8000);
             }
         },
+        // The trailing name in /play/{id}/{name} is cosmetic (the server resolves
+        // the file by episode id) — but a slash in it would split the URL path
+        // segment and 404. Strip path-breaking chars defensively.
+        safeName(s) { return (s || 'video').replace(/[\\/]+/g, '_'); },
         // --- Movies (Radarr) ---
         async loadFilms() {
             if (!this.services.radarr) { this.films = []; return; }
@@ -731,16 +815,25 @@ const app = createApp({
             finally { this.filmsLoading = false; }
         },
         filmStatusLabel(m) { return m.status === 'available' ? this.t('status_available') : (m.status === 'missing' ? this.t('status_missing') : this.t('status_unmonitored')); },
-        openFilm(m) { this.selectedFilm = m; this.filmReleases = null; this.filmSearching = false; this.filmGrabbed = {}; },
-        closeFilm() { this.selectedFilm = null; },
+        openFilm(m) {
+            this.selectedFilm = m; this.filmReleases = null; this.filmSearching = false; this.filmGrabbed = {};
+            this.filmShowTorrents = false; this.filmRelQuery = ''; this.filmRelQuality = 'All'; this.filmRelSort = 'seeds';
+        },
+        closeFilm() { this.selectedFilm = null; this.filmShowTorrents = false; },
+        openFilmTorrents() {
+            this.filmShowTorrents = true;
+            this.filmRelQuery = ''; this.filmRelQuality = 'All'; this.filmRelSort = 'seeds';
+            this.filmSearch();
+        },
+        closeFilmTorrents() { this.filmShowTorrents = false; },
         async playFilm(m) {
-            const name = (m.title || 'film') + '.mkv';
+            const name = this.safeName((m.title || 'film') + '.mkv');
             const fileUrl = location.protocol + '//' + location.host + '/play/movie/' + m.id + '/' + encodeURIComponent(name);
             try {
                 const r = await fetch('http://127.0.0.1:8788/play?url=' + encodeURIComponent(fileUrl));
                 if (!r.ok) throw new Error('helper');
             } catch (e) {
-                alert(this.t('alert_no_player'));
+                this.toast(this.t('alert_no_player'), 'error', 8000);
             }
         },
         async filmSearch() {
@@ -750,7 +843,7 @@ const app = createApp({
                 const r = await fetch('/api/films/search?movieId=' + this.selectedFilm.id);
                 if (!r.ok) throw new Error('search');
                 this.filmReleases = (await r.json()).releases || [];
-            } catch (e) { this.filmReleases = []; alert(this.t('alert_search_failed_radarr')); }
+            } catch (e) { this.filmReleases = []; this.toast(this.t('alert_search_failed_radarr'), 'error'); }
             finally { this.filmSearching = false; }
         },
         async filmGrab(rel) {
@@ -772,7 +865,7 @@ const app = createApp({
                 if (m.type === 'progress') {
                     const map = {};
                     (m.items || []).forEach((it) => {
-                        map[it.episodeId] = { status: it.status, percent: it.percent, timeleft: it.timeleft };
+                        map[it.episodeId] = { status: it.status, percent: it.percent, timeleft: it.timeleft, message: it.message };
                     });
                     this.liveProgress = true;
                     this.progress = map;
@@ -796,6 +889,8 @@ const app = createApp({
         this.loadDisk();
         this.connectWS();
         setInterval(() => { this.now = Date.now(); }, 30000);
+        // Refresh disk space periodically so the low-space alert stays current.
+        setInterval(() => this.loadDisk(), 60000);
         window.addEventListener('scroll', () => this.onScroll(), { passive: true });
         window.addEventListener('resize', () => this.updateUnderline());
         document.addEventListener('click', (e) => this.onDocClick(e));
@@ -855,6 +950,10 @@ const app = createApp({
                         <label class="opts-row">
                             <span>{{ t('opt_watch_unmonitored') }}</span>
                             <input type="checkbox" class="opts-toggle" v-model="watchUnmonitored" @change="saveWatchUnmonitored">
+                        </label>
+                        <label class="opts-row">
+                            <span>{{ t('opt_anti_spoiler') }}</span>
+                            <input type="checkbox" class="opts-toggle" v-model="antiSpoiler" @change="saveAntiSpoiler">
                         </label>
                         <label class="opts-row">
                             <span>{{ t('opt_language') }}</span>
@@ -959,6 +1058,9 @@ const app = createApp({
                                         </div>
                                         <div class="progress-track"><div class="progress-fill" :style="{ width: (dl(ep).percent || 0) + '%' }"></div></div>
                                     </div>
+                                    <div class="card-stuck" v-if="dl(ep) && dl(ep).status === 'pending' && dl(ep).message" :title="dl(ep).message">
+                                        <icon name="warning"></icon><span>{{ dl(ep).message }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </article>
@@ -1036,6 +1138,9 @@ const app = createApp({
                             <td>{{ (tr.ratio || 0).toFixed(2) }}</td>
                             <td>{{ tr.num_seeds }}</td>
                             <td class="d-actions">
+                                <button v-if="torrentDone(tr)" class="open" @click="playTorrent(tr)" :title="t('open_torrent_file')">
+                                    <icon name="play"></icon>
+                                </button>
                                 <button @click="torrentAction(tInfo(tr.state).paused ? 'resume' : 'pause', tr.hash)" :title="tInfo(tr.state).paused ? t('resume') : t('pause')">
                                     <icon :name="tInfo(tr.state).paused ? 'play' : 'pause'"></icon>
                                 </button>
@@ -1066,18 +1171,22 @@ const app = createApp({
             <div class="page-head">
                 <div>
                     <h1 class="month">Prowlarr</h1>
-                    <p class="subtitle">{{ t('prowlarr_count', { n: indexers.length }) }}</p>
+                    <div class="subtitle subtitle-row">
+                        <span>{{ t('prowlarr_count', { n: indexers.length }) }}</span>
+                        <template v-if="services.prowlarr && !prowlarrError">
+                            <button class="pill-badge" :class="{ on: isAppConnected('Sonarr') }" :disabled="connecting || isAppConnected('Sonarr')" @click="connectApp('sonarr')"
+                                    :title="isAppConnected('Sonarr') ? t('synced_in_sonarr') : t('app_connect', { app: 'Sonarr' })">
+                                <icon :name="isAppConnected('Sonarr') ? 'check' : 'bolt'"></icon> Sonarr
+                            </button>
+                            <button class="pill-badge" v-if="radarrConfigured" :class="{ on: isAppConnected('Radarr') }" :disabled="connecting || isAppConnected('Radarr')" @click="connectApp('radarr')"
+                                    :title="isAppConnected('Radarr') ? t('synced_in_radarr') : t('app_connect', { app: 'Radarr' })">
+                                <icon :name="isAppConnected('Radarr') ? 'check' : 'bolt'"></icon> Radarr
+                            </button>
+                        </template>
+                    </div>
                 </div>
                 <div class="month-nav">
                     <template v-if="services.prowlarr && !prowlarrError">
-                        <button class="conn-badge" :class="{ on: isAppConnected('Sonarr') }" :disabled="connecting || isAppConnected('Sonarr')" @click="connectApp('sonarr')"
-                                :title="isAppConnected('Sonarr') ? t('synced_in_sonarr') : t('app_connect', { app: 'Sonarr' })">
-                            <icon :name="isAppConnected('Sonarr') ? 'check' : 'bolt'"></icon> {{ isAppConnected('Sonarr') ? t('app_connected', { app: 'Sonarr' }) : t('app_connect', { app: 'Sonarr' }) }}
-                        </button>
-                        <button class="conn-badge" v-if="radarrConfigured" :class="{ on: isAppConnected('Radarr') }" :disabled="connecting || isAppConnected('Radarr')" @click="connectApp('radarr')"
-                                :title="isAppConnected('Radarr') ? t('synced_in_radarr') : t('app_connect', { app: 'Radarr' })">
-                            <icon :name="isAppConnected('Radarr') ? 'check' : 'bolt'"></icon> {{ isAppConnected('Radarr') ? t('app_connected', { app: 'Radarr' }) : t('app_connect', { app: 'Radarr' }) }}
-                        </button>
                         <button @click="openAddIndexer"><icon name="plus"></icon> {{ t('prowlarr_add_indexer') }}</button>
                     </template>
                 </div>
@@ -1110,107 +1219,22 @@ const app = createApp({
             </div>
         </section>
 
-        <section v-else-if="view === 'subtitles'" class="page">
-            <div class="page-head">
-                <div>
-                    <h1 class="month">{{ t('nav_subtitles') }}</h1>
-                    <p class="subtitle">{{ t('bazarr_count', { n: bazarrWantedCount() }) }}</p>
-                </div>
-            </div>
-            <div v-if="!services.bazarr" class="page-empty"><icon name="bolt"></icon><p><b>{{ t('bazarr_not_installed') }}</b><br>{{ t('bazarr_not_installed_desc') }}</p></div>
-            <div v-else-if="bazarrLoading" class="loading">{{ t('loading') }}</div>
-            <div v-else-if="bazarrError" class="page-empty"><icon name="bolt"></icon><p>{{ bazarrError }}</p></div>
-            <div v-else-if="bazarrData" class="bz-grid">
-                <div class="bz-block">
-                    <h2 class="bz-title">{{ t('bz_wanted_episodes') }} <span class="bz-pill">{{ bazarrData.wantedEpisodesTotal || 0 }}</span></h2>
-                    <div v-if="!bazarrData.wantedEpisodes || bazarrData.wantedEpisodes.length === 0" class="bz-empty">{{ t('bz_none_missing') }}</div>
-                    <div v-else class="table-wrap">
-                        <table class="data-table">
-                            <thead><tr><th>{{ t('bz_th_series') }}</th><th>{{ t('bz_th_episode') }}</th><th>{{ t('bz_th_missing_langs') }}</th></tr></thead>
-                            <tbody>
-                                <tr v-for="ep in bazarrData.wantedEpisodes" :key="ep.sonarrEpisodeId + '-' + ep.seriesTitle">
-                                    <td class="d-name">{{ ep.seriesTitle }}</td>
-                                    <td>{{ ep.episode_number }} <span class="muted">{{ ep.episodeTitle }}</span></td>
-                                    <td><span class="bz-lang" v-for="l in ep.missing_subtitles_languages" :key="l">{{ l }}</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="bz-block">
-                    <h2 class="bz-title">{{ t('bz_wanted_movies') }} <span class="bz-pill">{{ bazarrData.wantedMoviesTotal || 0 }}</span></h2>
-                    <div v-if="!bazarrData.wantedMovies || bazarrData.wantedMovies.length === 0" class="bz-empty">{{ t('bz_none_missing') }}</div>
-                    <div v-else class="table-wrap">
-                        <table class="data-table">
-                            <thead><tr><th>{{ t('bz_th_movie') }}</th><th>{{ t('bz_th_year') }}</th><th>{{ t('bz_th_missing_langs') }}</th></tr></thead>
-                            <tbody>
-                                <tr v-for="m in bazarrData.wantedMovies" :key="m.radarrId + '-' + m.title">
-                                    <td class="d-name">{{ m.title }}</td>
-                                    <td>{{ m.year }}</td>
-                                    <td><span class="bz-lang" v-for="l in m.missing_subtitles_languages" :key="l">{{ l }}</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="bz-block">
-                    <h2 class="bz-title">{{ t('bz_providers') }}</h2>
-                    <div v-if="!bazarrData.providers || bazarrData.providers.length === 0" class="bz-empty">{{ t('bz_no_provider') }}</div>
-                    <div v-else class="bz-providers">
-                        <div class="bz-provider" :class="providerStatusCls(p)" v-for="p in bazarrData.providers" :key="p.name">
-                            <span class="bz-dot"></span>
-                            <span class="bz-prov-name">{{ p.name }}</span>
-                            <span class="bz-prov-status" v-if="providerStatusCls(p) === 'err'">{{ p.status }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bz-block">
-                    <h2 class="bz-title">{{ t('bz_languages') }}</h2>
-                    <div v-if="!bazarrData.languages || bazarrData.languages.length === 0" class="bz-empty">{{ t('bz_no_language') }}</div>
-                    <div v-else class="bz-langs">
-                        <span class="bz-lang" v-for="l in bazarrData.languages" :key="l.code2">{{ l.name }}</span>
-                    </div>
-                </div>
-
-                <div class="bz-block bz-block-wide">
-                    <h2 class="bz-title">{{ t('bz_history') }}</h2>
-                    <div v-if="(!bazarrData.historyEpisodes || bazarrData.historyEpisodes.length === 0) && (!bazarrData.historyMovies || bazarrData.historyMovies.length === 0)" class="bz-empty">{{ t('bz_no_history') }}</div>
-                    <div v-else class="table-wrap">
-                        <table class="data-table">
-                            <thead><tr><th>{{ t('bz_th_when') }}</th><th>{{ t('bz_th_item') }}</th><th>{{ t('bz_th_lang') }}</th><th>{{ t('bz_th_provider') }}</th><th>{{ t('bz_th_score') }}</th></tr></thead>
-                            <tbody>
-                                <tr v-for="(h, i) in (bazarrData.historyEpisodes || [])" :key="'e' + i">
-                                    <td class="muted">{{ h.timestamp }}</td>
-                                    <td class="d-name">{{ h.seriesTitle }} <span class="muted">{{ h.episodeTitle }}</span></td>
-                                    <td>{{ h.language }}</td>
-                                    <td>{{ h.provider }}</td>
-                                    <td>{{ fmtScore(h.score) }}</td>
-                                </tr>
-                                <tr v-for="(h, i) in (bazarrData.historyMovies || [])" :key="'m' + i">
-                                    <td class="muted">{{ h.timestamp }}</td>
-                                    <td class="d-name">{{ h.title }}</td>
-                                    <td>{{ h.language }}</td>
-                                    <td>{{ h.provider }}</td>
-                                    <td>{{ fmtScore(h.score) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </section>
     </main>
 
     <div class="modal-backdrop" v-if="selected" @click.self="closeModal">
-        <div class="modal modal-fiche" :class="{ 'with-torrents': showTorrents || showSubs }">
+        <div class="modal modal-fiche" :class="{ 'with-torrents': showTorrents || showEpisodes }">
             <div class="fiche-bg" :style="selected.poster ? { backgroundImage: 'url(' + selected.poster + ')' } : null"></div>
             <div class="fiche-tint"></div>
             <div class="fiche-inner">
                 <div class="fiche-banner">
-                    <button class="modal-close fiche-close" @click="closeModal" :title="t('close')"><icon name="close"></icon></button>
+                    <div class="fiche-top-actions">
+                        <a v-if="sonarrUrl && selected.seriesSlug" class="fiche-top-btn fiche-top-sonarr"
+                           :href="sonarrUrl + '/series/' + selected.seriesSlug" target="_blank" rel="noopener"
+                           :title="t('open_in_sonarr')">
+                            <img src="/icons/sonarr.png" class="fiche-sonarr-ico" alt=""> <span>Sonarr</span>
+                        </a>
+                        <button class="modal-close fiche-close" @click="closeModal" :title="t('close')"><icon name="close"></icon></button>
+                    </div>
                 </div>
                 <div class="fiche-grid">
                     <aside class="fiche-side">
@@ -1222,48 +1246,50 @@ const app = createApp({
                                 <span v-if="isWatched(selected)" class="fiche-watched-tag">{{ t('watched') }}</span>
                             </div>
                         </div>
+                        <div class="fiche-meta-badges">
+                            <span v-if="selected.runtime">{{ selected.runtime }} {{ t('min') }}</span>
+                            <span v-if="selected.time">{{ selected.time }}</span>
+                            <span v-if="selected.rating" class="fiche-mb-rating">{{ selected.rating.toFixed(1) }}</span>
+                        </div>
                     </aside>
                     <div class="fiche-main">
-                        <div class="fiche-panel fiche-panel-a" :class="{ off: showTorrents || showSubs }" :inert="showTorrents || showSubs">
+                        <div class="fiche-panel fiche-panel-a" :class="{ off: showTorrents || showEpisodes }" :inert="showTorrents || showEpisodes">
                             <div class="fiche-chips-row">
                                 <span class="fiche-title-strong">{{ selected.series }}</span>
                                 <span class="fiche-chip" v-if="selected.year"><icon name="schedule"></icon> {{ selected.year }}</span>
-                                <span class="fiche-chip" v-if="selected.runtime"><icon name="schedule"></icon> {{ selected.runtime }} {{ t('min') }}</span>
-                                <span class="fiche-chip" v-if="selected.time">{{ selected.time }}</span>
-                                <span class="fiche-chip fiche-chip-rating" v-if="selected.rating"><icon name="star"></icon> {{ selected.rating.toFixed(1) }}</span>
                                 <span class="fiche-chip fiche-chip-cert" v-if="selected.certification">{{ selected.certification }}</span>
                             </div>
                             <h3 class="fiche-ep-title">
                                 <span class="fiche-ep-prefix">{{ t('ep_prefix') }} {{ selected.episode }} :</span>
-                                <span v-if="selected.episodeTitle" class="fiche-ep-name">{{ selected.episodeTitle }}</span>
+                                <span v-if="selected.episodeTitle" class="fiche-ep-name" :class="{ 'spoiler-blur': spoil(selected, isWatched(selected)) }">{{ selected.episodeTitle }}</span>
                             </h3>
                             <div class="fiche-genres" v-if="selected.genres && selected.genres.length">
                                 <span class="fiche-genre" v-for="g in selected.genres.slice(0, 4)" :key="g">{{ g }}</span>
                             </div>
-                            <p class="fiche-overview" v-if="selected.overview">{{ selected.overview }}</p>
+                            <p class="fiche-overview" v-if="selected.overview" :class="{ 'spoiler-blur': spoil(selected, isWatched(selected)) }">{{ selected.overview }}</p>
+                            <div class="fiche-stuck" v-if="dl(selected) && dl(selected).status === 'pending' && dl(selected).message">
+                                <icon name="warning"></icon>
+                                <div><b>{{ t('import_blocked') }}</b><span>{{ dl(selected).message }}</span></div>
+                            </div>
                             <div class="fiche-actions">
                                 <button v-if="selected.hasFile" class="fiche-btn fiche-btn-play" @click="play(selected)">
                                     <icon name="play"></icon> <span>{{ t('play_mpc') }}</span>
                                 </button>
-                                <button class="fiche-btn fiche-btn-watch" :class="{ on: isWatched(selected) }" @click="toggle(selected)">
-                                    <icon name="check"></icon> <span>{{ isWatched(selected) ? t('watched') : t('mark_watched') }}</span>
+                                <button class="fiche-eye-btn" :class="{ on: isWatched(selected) }" @click="toggle(selected)"
+                                        :title="isWatched(selected) ? t('watched') : t('mark_watched')">
+                                    <icon :name="isWatched(selected) ? 'eye' : 'eye_off'"></icon>
                                 </button>
-                                <a v-if="sonarrUrl && selected.seriesSlug" class="fiche-btn fiche-btn-sonarr"
-                                   :href="sonarrUrl + '/series/' + selected.seriesSlug" target="_blank" rel="noopener"
-                                   :title="t('open_in_sonarr')">
-                                    <icon name="external"></icon> <span>Sonarr</span>
-                                </a>
                             </div>
-                            <button class="fiche-torrents-cta" @click="searchTorrents">
-                                <div class="fiche-torrents-cta-icon"><icon name="search"></icon></div>
-                                <span class="fiche-torrents-cta-title">{{ t('search_torrents') }}</span>
-                                <span class="fiche-torrents-cta-arrow"><icon name="chevron_right"></icon></span>
-                            </button>
-                            <button class="fiche-torrents-cta fiche-subs-cta" v-if="services.bazarr" @click="openSubsPanel">
-                                <div class="fiche-torrents-cta-icon"><icon name="bolt"></icon></div>
-                                <span class="fiche-torrents-cta-title">{{ t('manage_subtitles') }}</span>
-                                <span class="fiche-torrents-cta-arrow"><icon name="chevron_right"></icon></span>
-                            </button>
+                            <div class="fiche-cta-row">
+                                <button class="fiche-torrents-cta fiche-cta-episodes" @click="openAllEpisodes">
+                                    <div class="fiche-torrents-cta-icon"><icon name="schedule"></icon></div>
+                                    <span class="fiche-torrents-cta-title">{{ t('cta_seasons') }}</span>
+                                </button>
+                                <button class="fiche-torrents-cta fiche-cta-torrents" @click="searchTorrents">
+                                    <div class="fiche-torrents-cta-icon"><icon name="search"></icon></div>
+                                    <span class="fiche-torrents-cta-title">{{ t('cta_torrents') }}</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="fiche-panel fiche-panel-b" :class="{ on: showTorrents }" :inert="!showTorrents">
                             <div class="fiche-tor-head">
@@ -1343,7 +1369,7 @@ const app = createApp({
                                                 <td><span class="q-badge" :class="qBadge(r.quality)">{{ r.quality }}</span></td>
                                                 <td class="num t-nowrap">{{ fmtSize(r.size) }}</td>
                                                 <td class="num"><span class="fiche-seed" :class="seedClass(r.seeders)">{{ r.seeders }}</span></td>
-                                                <td class="num age-col t-nowrap">{{ r.age }}{{ t('u_d') }}</td>
+                                                <td class="num age-col t-nowrap">{{ fmtAge(r) }}</td>
                                                 <td class="dl-col">
                                                     <button class="fiche-dl-btn" :class="grabbed[r.guid]" @click="grab(r)"
                                                         :disabled="grabbed[r.guid]==='wait' || grabbed[r.guid]==='ok'"
@@ -1366,106 +1392,52 @@ const app = createApp({
                                 <span>{{ t('prowlarr_connected_short') }}</span>
                             </div>
                         </div>
-                        <div class="fiche-panel fiche-panel-c" :class="{ on: showSubs }" :inert="!showSubs">
+                        <div class="fiche-panel fiche-panel-d" :class="{ on: showEpisodes }" :inert="!showEpisodes">
                             <div class="fiche-tor-head">
-                                <button class="fiche-back-btn" @click="closeSubsPanel">
+                                <button class="fiche-back-btn" @click="closeEpisodesPanel">
                                     <icon name="chevron_left"></icon>
                                     <span>{{ t('back_episode') }}</span>
                                 </button>
-                                <span class="fiche-tor-status" :class="{ loading: epSubsSearching || epSubsLoading }">
+                                <span class="fiche-tor-status" :class="{ loading: episodesLoading }">
                                     <span class="fiche-tor-dot"></span>
-                                    <template v-if="epSubsSearching">{{ t('searching_subs') }}</template>
-                                    <template v-else-if="epSubsLoading">{{ t('loading') }}</template>
-                                    <template v-else-if="epSubsResults">{{ t('n_results_found', { n: epSubsResults.length }) }}</template>
-                                    <template v-else>{{ t('subs_present_n', { n: (epSubsCurrent || []).length }) }}</template>
+                                    <template v-if="episodesLoading">{{ t('loading') }}</template>
+                                    <template v-else>{{ t('n_episodes', { n: seasonEpisodes.length }) }}</template>
                                 </span>
                             </div>
-                            <div class="fiche-subs-current" v-if="epSubsCurrent && !epSubsSearching">
-                                <div class="fiche-subs-head">{{ t('subs_present') }}</div>
-                                <div v-if="epSubsCurrent.length === 0" class="fiche-subs-none">{{ t('subs_none') }}</div>
-                                <div v-else class="fiche-subs-list">
-                                    <span class="fiche-sub-pill" v-for="(s, i) in epSubsCurrent" :key="'cur'+i">
-                                        <icon name="check"></icon>
-                                        <span>{{ s.name }}</span>
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="fiche-subs-action" v-if="!epSubsResults && !epSubsSearching">
-                                <button class="fiche-btn fiche-btn-play" @click="searchSubs">
-                                    <icon name="search"></icon>
-                                    <span>{{ t('search_subs') }}</span>
+                            <div class="ep-seasons" v-if="!episodesLoading && seasons.length">
+                                <button v-for="s in seasons" :key="s" class="ep-season-tab" :class="{ on: currentSeason === s }"
+                                        @click="currentSeason = s; expandedEp = null">
+                                    {{ s === 0 ? t('specials') : t('season') + ' ' + s }}
                                 </button>
-                                <span class="muted">{{ t('search_subs_hint') }}</span>
                             </div>
-                            <div class="fiche-tor-table-wrap" v-if="epSubsSearching">
-                                <table class="fiche-tor-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{{ t('th_lang') }}</th>
-                                            <th>{{ t('bz_th_provider') }}</th>
-                                            <th>Info</th>
-                                            <th class="num">{{ t('bz_th_score') }}</th>
-                                            <th class="dl-col">DL</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="fiche-skel">
-                                        <tr v-for="i in 4" :key="'sks'+i">
-                                            <td><div class="fiche-sk fiche-sk-badge"></div></td>
-                                            <td><div class="fiche-sk fiche-sk-line w-50"></div></td>
-                                            <td><div class="fiche-sk fiche-sk-line w-80 sm"></div></td>
-                                            <td class="num"><div class="fiche-sk fiche-sk-line w-30 r"></div></td>
-                                            <td class="dl-col"><div class="fiche-sk fiche-sk-btn"></div></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <div v-if="episodesLoading" class="ep-list">
+                                <div class="ep-row ep-skel" v-for="i in 6" :key="'eps'+i"><div class="fiche-sk fiche-sk-line w-80"></div></div>
                             </div>
-                            <div class="fiche-tor-table-wrap" v-if="epSubsResults && !epSubsSearching">
-                                <table class="fiche-tor-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{{ t('th_lang') }}</th>
-                                            <th>{{ t('bz_th_provider') }}</th>
-                                            <th>Info</th>
-                                            <th class="num">{{ t('bz_th_score') }}</th>
-                                            <th class="dl-col">DL</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-if="epSubsResults.length === 0">
-                                            <td colspan="5" class="fiche-tor-empty">
-                                                <icon name="schedule"></icon>
-                                                <span>{{ t('subs_none_found') }}</span>
-                                            </td>
-                                        </tr>
-                                        <tr v-for="(sub, i) in epSubsResults" :key="subKey(sub, i)">
-                                            <td><span class="bz-lang">{{ sub.language }}</span></td>
-                                            <td>{{ sub.provider }}</td>
-                                            <td class="muted">
-                                                <span v-if="truthy(sub.hearing_impaired)" class="fiche-sub-tag">HI</span>
-                                                <span v-if="truthy(sub.forced)" class="fiche-sub-tag">forced</span>
-                                                <span v-if="sub.uploader" class="fiche-sub-uploader">{{ sub.uploader }}</span>
-                                            </td>
-                                            <td class="num">{{ sub.score }}</td>
-                                            <td class="dl-col">
-                                                <button class="fiche-dl-btn" :class="epSubDownloading[subKey(sub, i)]"
-                                                    @click="downloadSub(sub, i)"
-                                                    :disabled="epSubDownloading[subKey(sub, i)]==='wait' || epSubDownloading[subKey(sub, i)]==='ok'"
-                                                    :title="epSubDownloading[subKey(sub, i)]==='ok' ? t('subs_downloaded') : (epSubDownloading[subKey(sub, i)]==='err' ? t('failed') : t('download_verb'))">
-                                                    <icon :name="epSubDownloading[subKey(sub, i)]==='ok' ? 'check' : (epSubDownloading[subKey(sub, i)]==='err' ? 'close' : 'download')"></icon>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="fiche-tor-foot">
-                                <span class="fiche-tor-foot-l">
-                                    <template v-if="epSubsSearching">
-                                        <icon name="sync" class="spin"></icon>
-                                        <span>{{ t('querying_providers') }}</span>
-                                    </template>
-                                </span>
-                                <span>{{ t('bazarr_connected') }}</span>
+                            <div v-else class="ep-list">
+                                <div v-if="seasonEpisodes.length === 0" class="fiche-tor-empty"><icon name="schedule"></icon><span>{{ t('no_episodes') }}</span></div>
+                                <div v-for="ep in seasonEpisodes" :key="ep.episodeId"
+                                     class="ep-row" :class="{ upcoming: !epAired(ep), watched: epWatched(ep), expanded: expandedEp === ep.episodeId }">
+                                    <div class="ep-main">
+                                        <span class="ep-tag">S{{ pad(ep.season) }}E{{ pad(ep.episode) }}</span>
+                                        <span class="ep-title" :class="{ 'spoiler-blur': spoil(ep, epWatched(ep)) }" @click="ep.overview && toggleEpExpand(ep)">{{ ep.episodeTitle || (t('ep_prefix') + ' ' + ep.episode) }}</span>
+                                        <span class="ep-runtime">({{ epAired(ep) ? fmtEpRuntime(ep.runtime) : '??:??' }})</span>
+                                        <button v-if="ep.overview" class="ep-expand" :class="{ open: expandedEp === ep.episodeId }" @click="toggleEpExpand(ep)" :title="t('details')">
+                                            <icon name="expand_more"></icon>
+                                        </button>
+                                        <span class="ep-spacer"></span>
+                                        <template v-if="epAired(ep)">
+                                            <button class="ep-btn ep-btn-play" :disabled="!ep.hasFile" @click="playEp(ep)" :title="t('play_mpc')"><icon name="play"></icon></button>
+                                            <button class="ep-btn ep-btn-dl" @click="searchEpForList(ep)" :title="t('search_torrents')"><icon name="download"></icon></button>
+                                            <button class="ep-btn ep-btn-eye" :class="{ on: epWatched(ep) }" @click="toggleEpWatched(ep)" :title="epWatched(ep) ? t('watched') : t('mark_watched')">
+                                                <icon :name="epWatched(ep) ? 'eye' : 'eye_off'"></icon>
+                                            </button>
+                                        </template>
+                                        <span v-else class="ep-soon"><icon name="lock"></icon> {{ t('soon') }}</span>
+                                    </div>
+                                    <div class="ep-overview" v-if="expandedEp === ep.episodeId && ep.overview" :class="{ 'spoiler-blur': spoil(ep, epWatched(ep)) }">
+                                        {{ ep.overview }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1556,60 +1528,148 @@ const app = createApp({
     </div>
 
     <div class="modal-backdrop" v-if="selectedFilm" @click.self="closeFilm">
-        <div class="modal">
-            <div class="modal-banner">
-                <img v-if="selectedFilm.banner || selectedFilm.poster" :src="selectedFilm.banner || selectedFilm.poster" alt="">
-                <div class="modal-grad"></div>
-                <button class="modal-close" @click="closeFilm"><icon name="close"></icon></button>
-                <div class="modal-head">
-                    <h2>{{ selectedFilm.title }}<span v-if="selectedFilm.year" class="add-year"> ({{ selectedFilm.year }})</span></h2>
-                    <div class="modal-badges">
-                        <span class="badge" :class="'status-' + (selectedFilm.status==='available' ? 'available' : (selectedFilm.status==='missing' ? 'downloading' : 'upcoming'))">{{ filmStatusLabel(selectedFilm) }}</span>
+        <div class="modal modal-fiche" :class="{ 'with-torrents': filmShowTorrents }">
+            <div class="fiche-bg" :style="selectedFilm.poster ? { backgroundImage: 'url(' + selectedFilm.poster + ')' } : null"></div>
+            <div class="fiche-tint"></div>
+            <div class="fiche-inner">
+                <div class="fiche-banner">
+                    <div class="fiche-top-actions">
+                        <a v-if="radarrUrl && selectedFilm.slug" class="fiche-top-btn fiche-top-sonarr"
+                           :href="radarrUrl + '/movie/' + selectedFilm.slug" target="_blank" rel="noopener"
+                           :title="t('open_in_radarr')">
+                            <img src="/icons/radarr.png" class="fiche-sonarr-ico" alt=""> <span>Radarr</span>
+                        </a>
+                        <button class="modal-close fiche-close" @click="closeFilm" :title="t('close')"><icon name="close"></icon></button>
                     </div>
                 </div>
-            </div>
-            <div class="modal-body">
-                <p v-if="selectedFilm.overview" class="film-overview">{{ selectedFilm.overview }}</p>
-                <div class="modal-actions">
-                    <button v-if="selectedFilm.hasFile" class="btn btn-play" @click="playFilm(selectedFilm)">
-                        <icon name="play"></icon> {{ t('play_mpc') }}
-                    </button>
-                    <a v-if="radarrUrl && selectedFilm.slug" class="btn btn-sonarr" :href="radarrUrl + '/movie/' + selectedFilm.slug" target="_blank" rel="noopener" :title="t('open_in_radarr')">
-                        <icon name="external"></icon> Radarr
-                    </a>
-                </div>
-                <div class="torrent-search">
-                    <button class="btn btn-search" @click="filmSearch" :disabled="filmSearching">
-                        <icon name="search"></icon> {{ filmSearching ? t('searching_torrents') : t('search_torrents') }}
-                    </button>
-                    <div class="torrent-results" v-if="filmReleases !== null">
-                        <p v-if="filmReleases.length === 0" class="torrent-empty">{{ t('torrents_search_empty') }}</p>
-                        <table v-else class="torrent-table">
-                            <thead><tr>
-                                <th>{{ t('th_title') }}</th><th>{{ t('th_indexer') }}</th><th>{{ t('th_quality') }}</th><th>{{ t('th_size') }}</th><th>{{ t('th_seed') }}</th><th>{{ t('th_age') }}</th><th></th>
-                            </tr></thead>
-                            <tbody>
-                                <tr v-for="r in filmReleases" :key="r.guid" :class="{ rejected: r.rejected }">
-                                    <td class="t-title" :title="(r.rejections && r.rejections.length) ? r.rejections.join(' · ') : r.title">
-                                        <a v-if="r.infoUrl" :href="r.infoUrl" target="_blank" rel="noopener" class="t-link">{{ r.title }} <icon name="external" class="fiche-tor-info"></icon></a>
-                                        <template v-else>{{ r.title }}</template>
-                                        <span class="rel-lang ml" :class="b.cls" v-for="b in parseLangs(r.title)" :key="b.label">{{ b.label }}</span>
-                                    </td>
-                                    <td class="t-idx">{{ r.indexer }}</td>
-                                    <td><span class="q-badge" :class="qBadge(r.quality)">{{ r.quality }}</span></td>
-                                    <td class="t-nowrap">{{ fmtSize(r.size) }}</td>
-                                    <td><span class="seed" :class="seedClass(r.seeders)">{{ r.seeders }}</span></td>
-                                    <td class="t-nowrap">{{ r.age }}{{ t('u_d') }}</td>
-                                    <td>
-                                        <button class="grab-btn" :class="filmGrabbed[r.guid]" @click="filmGrab(r)"
-                                                :disabled="filmGrabbed[r.guid]==='wait' || filmGrabbed[r.guid]==='ok'"
-                                                :title="filmGrabbed[r.guid]==='ok' ? t('grab_sent_radarr') : (filmGrabbed[r.guid]==='err' ? t('failed') : t('download_verb'))">
-                                            <icon :name="filmGrabbed[r.guid]==='ok' ? 'check' : (filmGrabbed[r.guid]==='err' ? 'close' : 'download')"></icon>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="fiche-grid">
+                    <aside class="fiche-side">
+                        <div class="fiche-jacket">
+                            <img v-if="selectedFilm.poster || selectedFilm.banner" :src="selectedFilm.poster || selectedFilm.banner" :alt="selectedFilm.title">
+                            <div class="fiche-jacket-grad"></div>
+                            <div class="fiche-jacket-badges">
+                                <span class="fiche-film-status" :class="selectedFilm.status">{{ filmStatusLabel(selectedFilm) }}</span>
+                            </div>
+                        </div>
+                        <div class="fiche-meta-badges">
+                            <span v-if="selectedFilm.runtime">{{ selectedFilm.runtime }} {{ t('min') }}</span>
+                            <span v-if="selectedFilm.year">{{ selectedFilm.year }}</span>
+                        </div>
+                    </aside>
+                    <div class="fiche-main">
+                        <div class="fiche-panel fiche-panel-a" :class="{ off: filmShowTorrents }" :inert="filmShowTorrents">
+                            <div class="fiche-chips-row">
+                                <span class="fiche-title-strong">{{ selectedFilm.title }}</span>
+                                <span class="fiche-chip" v-if="selectedFilm.year"><icon name="schedule"></icon> {{ selectedFilm.year }}</span>
+                            </div>
+                            <p class="fiche-overview" v-if="selectedFilm.overview">{{ selectedFilm.overview }}</p>
+                            <div class="fiche-actions">
+                                <button v-if="selectedFilm.hasFile" class="fiche-btn fiche-btn-play" @click="playFilm(selectedFilm)">
+                                    <icon name="play"></icon> <span>{{ t('play_mpc') }}</span>
+                                </button>
+                            </div>
+                            <button class="fiche-torrents-cta fiche-cta-torrents" @click="openFilmTorrents">
+                                <div class="fiche-torrents-cta-icon"><icon name="search"></icon></div>
+                                <span class="fiche-torrents-cta-title">{{ t('cta_torrents') }}</span>
+                                <span class="fiche-torrents-cta-arrow"><icon name="chevron_right"></icon></span>
+                            </button>
+                        </div>
+                        <div class="fiche-panel fiche-panel-b" :class="{ on: filmShowTorrents }" :inert="!filmShowTorrents">
+                            <div class="fiche-tor-head">
+                                <button class="fiche-back-btn" @click="closeFilmTorrents">
+                                    <icon name="chevron_left"></icon>
+                                    <span>{{ t('back_film') }}</span>
+                                </button>
+                                <span class="fiche-tor-status" :class="{ loading: filmSearching }">
+                                    <span class="fiche-tor-dot"></span>
+                                    {{ filmSearching ? t('searching_torrents') : t('n_results_found', { n: filmFilteredReleases.length }) }}
+                                </span>
+                            </div>
+                            <div class="fiche-tor-filters">
+                                <label class="fiche-tor-search">
+                                    <icon name="search"></icon>
+                                    <input type="text" v-model="filmRelQuery" :placeholder="t('filter_release_name')" :disabled="filmSearching">
+                                </label>
+                                <div class="fiche-tor-controls">
+                                    <div class="fiche-tor-qual">
+                                        <button v-for="q in ['All', '2160p', '1080p', '720p']" :key="q"
+                                            :class="{ on: filmRelQuality === q }" :disabled="filmSearching"
+                                            @click="filmRelQuality = q">{{ q }}</button>
+                                    </div>
+                                    <button class="fiche-tor-sort" :disabled="filmSearching"
+                                        @click="filmRelSort = (filmRelSort === 'seeds' ? 'size' : 'seeds')">
+                                        <icon name="sync"></icon>
+                                        <span>{{ filmRelSort === 'seeds' ? t('sort_seeders') : t('sort_size') }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="fiche-tor-table-wrap">
+                                <table class="fiche-tor-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ t('th_title') }}</th>
+                                            <th>{{ t('th_quality') }}</th>
+                                            <th class="num">{{ t('th_size') }}</th>
+                                            <th class="num">{{ t('th_seed') }}</th>
+                                            <th class="num age-col">{{ t('th_age') }}</th>
+                                            <th class="dl-col">DL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody v-if="filmSearching" class="fiche-skel">
+                                        <tr v-for="i in 5" :key="'fsk' + i">
+                                            <td><div class="fiche-sk fiche-sk-line w-80"></div><div class="fiche-sk fiche-sk-line w-30 sm"></div></td>
+                                            <td><div class="fiche-sk fiche-sk-badge"></div></td>
+                                            <td class="num"><div class="fiche-sk fiche-sk-line w-50 r"></div></td>
+                                            <td class="num"><div class="fiche-sk fiche-sk-line w-30 r"></div></td>
+                                            <td class="num age-col"><div class="fiche-sk fiche-sk-line w-30 r"></div></td>
+                                            <td class="dl-col"><div class="fiche-sk fiche-sk-btn"></div></td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody v-else>
+                                        <tr v-if="filmFilteredReleases.length === 0">
+                                            <td colspan="6" class="fiche-tor-empty">
+                                                <icon name="schedule"></icon>
+                                                <span>{{ t('torrents_search_empty') }}</span>
+                                            </td>
+                                        </tr>
+                                        <template v-else>
+                                            <tr v-for="r in filmFilteredReleases" :key="r.guid" :class="{ rejected: r.rejected }">
+                                                <td class="fiche-tor-title">
+                                                    <a v-if="r.infoUrl" :href="r.infoUrl" target="_blank" rel="noopener" class="fiche-tor-name" :title="(r.rejections && r.rejections.length) ? r.rejections.join(' · ') : r.title">
+                                                        {{ r.title }} <icon name="external" class="fiche-tor-info"></icon>
+                                                    </a>
+                                                    <span v-else class="fiche-tor-name" :title="(r.rejections && r.rejections.length) ? r.rejections.join(' · ') : r.title">{{ r.title }}</span>
+                                                    <span class="fiche-tor-meta">
+                                                        <span class="fiche-tor-idx">{{ r.indexer }}</span>
+                                                        <span class="rel-lang" :class="b.cls" v-for="b in parseLangs(r.title)" :key="b.label">{{ b.label }}</span>
+                                                    </span>
+                                                </td>
+                                                <td><span class="q-badge" :class="qBadge(r.quality)">{{ r.quality }}</span></td>
+                                                <td class="num t-nowrap">{{ fmtSize(r.size) }}</td>
+                                                <td class="num"><span class="fiche-seed" :class="seedClass(r.seeders)">{{ r.seeders }}</span></td>
+                                                <td class="num age-col t-nowrap">{{ fmtAge(r) }}</td>
+                                                <td class="dl-col">
+                                                    <button class="fiche-dl-btn" :class="filmGrabbed[r.guid]" @click="filmGrab(r)"
+                                                        :disabled="filmGrabbed[r.guid]==='wait' || filmGrabbed[r.guid]==='ok'"
+                                                        :title="filmGrabbed[r.guid]==='ok' ? t('grab_sent_radarr') : (filmGrabbed[r.guid]==='err' ? t('failed') : t('download_verb'))">
+                                                        <icon :name="filmGrabbed[r.guid]==='ok' ? 'check' : (filmGrabbed[r.guid]==='err' ? 'close' : 'download')"></icon>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="fiche-tor-foot">
+                                <span class="fiche-tor-foot-l">
+                                    <template v-if="filmSearching">
+                                        <icon name="sync" class="spin"></icon>
+                                        <span>{{ t('querying_indexers') }}</span>
+                                    </template>
+                                </span>
+                                <span>{{ t('prowlarr_connected_short') }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1656,6 +1716,24 @@ const app = createApp({
                     <button class="btn btn-watch" @click="deleteTarget=null">{{ t('cancel') }}</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Persistent low-disk-space alert (bottom-right) -->
+    <div class="lowdisk-alert" v-if="lowDisk">
+        <icon name="warning"></icon>
+        <div class="lowdisk-text">
+            <b>{{ t('lowdisk_title') }}</b>
+            <span>{{ t('lowdisk_desc', { free: fmtGB(disk.free) }) }}</span>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div class="toast-stack">
+        <div v-for="tt in toasts" :key="tt.id" class="toast" :class="'toast-' + tt.type" @click="dismissToast(tt.id)">
+            <icon :name="tt.type === 'success' ? 'check' : (tt.type === 'error' ? 'warning' : 'bolt')"></icon>
+            <span class="toast-msg">{{ tt.message }}</span>
+            <button class="toast-x" @click.stop="dismissToast(tt.id)"><icon name="close"></icon></button>
         </div>
     </div>
     `,

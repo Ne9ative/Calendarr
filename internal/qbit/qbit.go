@@ -249,6 +249,12 @@ type Torrent struct {
 	NumLeechs int     `json:"num_leechs"`
 	Eta       int64   `json:"eta"`
 	AddedOn   int64   `json:"added_on"`
+	// ContentPath: absolute path of the torrent content (the file itself for a
+	// single-file torrent, the root folder for a multi-file one). SavePath: the
+	// download directory. Used to open/play the file directly, even when Sonarr
+	// failed to move it into the library.
+	ContentPath string `json:"content_path"`
+	SavePath    string `json:"save_path"`
 }
 
 func (c *Client) Torrents() ([]Torrent, error) {
@@ -261,6 +267,75 @@ func (c *Client) Torrents() ([]Torrent, error) {
 		return nil, err
 	}
 	return ts, nil
+}
+
+type torrentFile struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+var videoExts = map[string]bool{
+	".mkv": true, ".mp4": true, ".avi": true, ".mov": true, ".wmv": true,
+	".m4v": true, ".ts": true, ".flv": true, ".webm": true, ".mpg": true,
+	".mpeg": true, ".m2ts": true, ".divx": true,
+}
+
+func isVideo(name string) bool { return videoExts[strings.ToLower(filepath.Ext(name))] }
+
+// FilePath returns the on-disk path of the main video file of a torrent
+// (identified by its hash), so it can be served/played directly even when
+// Sonarr never managed to move it into the library. For a multi-file torrent it
+// picks the largest video file.
+func (c *Client) FilePath(hash string) (string, error) {
+	b, err := c.do(http.MethodGet, "/api/v2/torrents/info?hashes="+url.QueryEscape(hash), nil)
+	if err != nil {
+		return "", err
+	}
+	var ts []Torrent
+	if err := json.Unmarshal(b, &ts); err != nil {
+		return "", err
+	}
+	if len(ts) == 0 {
+		return "", fmt.Errorf("torrent %s not found", hash)
+	}
+	t := ts[0]
+
+	// Per-file listing: pick the largest video file (fall back to the largest
+	// file of any kind if no recognized video extension is present).
+	fb, ferr := c.do(http.MethodGet, "/api/v2/torrents/files?hash="+url.QueryEscape(hash), nil)
+	if ferr == nil {
+		var files []torrentFile
+		if json.Unmarshal(fb, &files) == nil && len(files) > 0 {
+			best, bestSize := "", int64(-1)
+			for _, f := range files {
+				if isVideo(f.Name) && f.Size > bestSize {
+					best, bestSize = f.Name, f.Size
+				}
+			}
+			if best == "" {
+				for _, f := range files {
+					if f.Size > bestSize {
+						best, bestSize = f.Name, f.Size
+					}
+				}
+			}
+			if best != "" {
+				if t.SavePath != "" {
+					return filepath.Join(t.SavePath, filepath.FromSlash(best)), nil
+				}
+				// No save_path: derive from content_path (its parent is save_path
+				// for single-file torrents; for multi-file the file name already
+				// carries the root folder, so join onto content_path's parent).
+				if t.ContentPath != "" {
+					return filepath.Join(filepath.Dir(t.ContentPath), filepath.FromSlash(best)), nil
+				}
+			}
+		}
+	}
+	if t.ContentPath != "" {
+		return t.ContentPath, nil
+	}
+	return "", fmt.Errorf("no playable file for torrent %s", hash)
 }
 
 // setState tries the modern endpoint (qBit 5.x) then falls back to the legacy one (4.x).

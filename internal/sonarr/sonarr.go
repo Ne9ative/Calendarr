@@ -378,23 +378,57 @@ func (c *Client) AddDownloadClient(name, host string, port int, username, passwo
 // Release is a release returned by Sonarr's interactive search
 // (GET /api/v3/release): queries all indexers configured in Sonarr.
 type Release struct {
-	GUID      string `json:"guid"`
-	Title     string `json:"title"`
-	Indexer   string `json:"indexer"`
-	IndexerID int    `json:"indexerId"`
-	Protocol  string `json:"protocol"`
-	Size      int64  `json:"size"`
-	Seeders   *int   `json:"seeders"`
-	Leechers  *int   `json:"leechers"`
-	Age       int    `json:"age"`
-	InfoURL   string `json:"infoUrl"`
-	Quality   struct {
+	GUID       string  `json:"guid"`
+	Title      string  `json:"title"`
+	Indexer    string  `json:"indexer"`
+	IndexerID  int     `json:"indexerId"`
+	Protocol   string  `json:"protocol"`
+	Size       int64   `json:"size"`
+	Seeders    *int    `json:"seeders"`
+	Leechers   *int    `json:"leechers"`
+	Age        int     `json:"age"`
+	AgeHours   float64 `json:"ageHours"`
+	AgeMinutes float64 `json:"ageMinutes"`
+	InfoURL    string  `json:"infoUrl"`
+	Quality    struct {
 		Quality struct {
 			Name string `json:"name"`
 		} `json:"quality"`
 	} `json:"quality"`
 	Rejected   bool     `json:"rejected"`
 	Rejections []string `json:"rejections"`
+}
+
+// SeriesEpisode is one item of a series' full episode list (every season),
+// used by the "all episodes" panel in the modal.
+type SeriesEpisode struct {
+	ID            int    `json:"id"`
+	SeasonNumber  int    `json:"seasonNumber"`
+	EpisodeNumber int    `json:"episodeNumber"`
+	Title         string `json:"title"`
+	Overview      string `json:"overview"`
+	Runtime       int    `json:"runtime"`
+	AirDateUtc    string `json:"airDateUtc"`
+	HasFile       bool   `json:"hasFile"`
+	Monitored     bool   `json:"monitored"`
+	FinaleType    string `json:"finaleType"`
+	EpisodeFile   struct {
+		Path string `json:"path"`
+	} `json:"episodeFile"`
+}
+
+// SeriesEpisodes returns every episode of a series (all seasons), with file
+// info so the UI can offer playback and tell aired from upcoming.
+func (c *Client) SeriesEpisodes(seriesID int) ([]SeriesEpisode, error) {
+	b, err := c.apiGet(fmt.Sprintf("/api/v3/episode?seriesId=%d&includeEpisodeFile=true", seriesID))
+	if err != nil {
+		return nil, err
+	}
+	var eps []SeriesEpisode
+	if err := json.Unmarshal(b, &eps); err != nil {
+		return nil, fmt.Errorf("episodes decoding: %w", err)
+	}
+	return eps, nil
 }
 
 // SearchReleases runs an interactive search for an episode (may take several
@@ -577,15 +611,47 @@ type QueueItem struct {
 	Status    string
 	Percent   int
 	TimeLeft  string
+	Message   string // why an import is stuck/blocked (from Sonarr statusMessages/errorMessage)
+}
+
+type statusMessage struct {
+	Title    string   `json:"title"`
+	Messages []string `json:"messages"`
 }
 
 type queueRecord struct {
-	EpisodeID    int     `json:"episodeId"`
-	Size         float64 `json:"size"`
-	SizeLeft     float64 `json:"sizeleft"`
-	TimeLeft     string  `json:"timeleft"`
-	Status       string  `json:"status"`
-	TrackedState string  `json:"trackedDownloadState"` // downloading, importPending, importing, imported...
+	EpisodeID      int             `json:"episodeId"`
+	Size           float64         `json:"size"`
+	SizeLeft       float64         `json:"sizeleft"`
+	TimeLeft       string          `json:"timeleft"`
+	Status         string          `json:"status"`
+	TrackedState   string          `json:"trackedDownloadState"`  // downloading, importPending, importing, imported...
+	TrackedStatus  string          `json:"trackedDownloadStatus"` // ok, warning, error
+	ErrorMessage   string          `json:"errorMessage"`
+	StatusMessages []statusMessage `json:"statusMessages"`
+}
+
+// stuckReason builds a human-readable explanation of why a download is blocked
+// (failed import / move). Sonarr exposes these as statusMessages + errorMessage;
+// without them a blocked item just sits at "pending" with no clue why.
+func (r queueRecord) stuckReason() string {
+	var parts []string
+	for _, sm := range r.StatusMessages {
+		// The per-message detail is the most useful; fall back to the title.
+		if len(sm.Messages) > 0 {
+			for _, m := range sm.Messages {
+				if m = strings.TrimSpace(m); m != "" {
+					parts = append(parts, m)
+				}
+			}
+		} else if t := strings.TrimSpace(sm.Title); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	if len(parts) == 0 && strings.TrimSpace(r.ErrorMessage) != "" {
+		parts = append(parts, strings.TrimSpace(r.ErrorMessage))
+	}
+	return strings.Join(parts, " · ")
 }
 
 type queueResponse struct {
@@ -648,8 +714,15 @@ func (c *Client) Queue() ([]QueueItem, error) {
 		if st == "importing" {
 			pct = 100
 		}
+		// A "pending" item (import awaiting / blocked) is the case the user cares
+		// about: surface why it isn't finishing. Also expose a warning/error
+		// reason on a stuck download.
+		msg := ""
+		if st == "pending" || strings.EqualFold(r.TrackedStatus, "warning") || strings.EqualFold(r.TrackedStatus, "error") {
+			msg = r.stuckReason()
+		}
 		if cur, ok := bestRank[r.EpisodeID]; !ok || cur < rk {
-			best[r.EpisodeID] = QueueItem{EpisodeID: r.EpisodeID, Status: st, Percent: pct, TimeLeft: r.TimeLeft}
+			best[r.EpisodeID] = QueueItem{EpisodeID: r.EpisodeID, Status: st, Percent: pct, TimeLeft: r.TimeLeft, Message: msg}
 			bestRank[r.EpisodeID] = rk
 		}
 	}

@@ -705,6 +705,113 @@ for (const code in SETUP_GUIDE_MESSAGES) {
     if (MESSAGES[code]) Object.assign(MESSAGES[code], SETUP_GUIDE_MESSAGES[code]);
 }
 
+// New-feature strings: anti-spoiler, all-episodes/seasons panel, stuck imports,
+// the "open completed torrent" action and the low-disk alert.
+const FEATURE_MESSAGES = {
+    en: {
+        opt_anti_spoiler: "Anti-spoiler (blur titles)",
+        all_episodes: "All episodes", season: "Season", specials: "Specials",
+        soon: "SOON", details: "Details", no_episodes: "No episode.", n_episodes: "{n} episodes",
+        import_blocked: "Import blocked", open_torrent_file: "Open the file in MPC-BE",
+        lowdisk_title: "Low disk space", lowdisk_desc: "Only {free} left on the media disk.",
+        alert_episodes_failed: "Failed to load episodes.",
+    },
+    fr: {
+        opt_anti_spoiler: "Anti-spoiler (titres floutés)",
+        all_episodes: "Tous les épisodes", season: "Saison", specials: "Spéciaux",
+        soon: "BIENTÔT", details: "Détails", no_episodes: "Aucun épisode.", n_episodes: "{n} épisodes",
+        import_blocked: "Import bloqué", open_torrent_file: "Ouvrir le fichier dans MPC-BE",
+        lowdisk_title: "Espace disque faible", lowdisk_desc: "Il ne reste que {free} sur le disque média.",
+        alert_episodes_failed: "Échec du chargement des épisodes.",
+    },
+    es: {
+        opt_anti_spoiler: "Anti-spoiler (difuminar títulos)",
+        all_episodes: "Todos los episodios", season: "Temporada", specials: "Especiales",
+        soon: "PRONTO", details: "Detalles", no_episodes: "Sin episodios.", n_episodes: "{n} episodios",
+        import_blocked: "Importación bloqueada", open_torrent_file: "Abrir el archivo en MPC-BE",
+        lowdisk_title: "Poco espacio en disco", lowdisk_desc: "Solo quedan {free} en el disco multimedia.",
+        alert_episodes_failed: "Error al cargar los episodios.",
+    },
+    de: {
+        opt_anti_spoiler: "Anti-Spoiler (Titel unkenntlich)",
+        all_episodes: "Alle Folgen", season: "Staffel", specials: "Specials",
+        soon: "BALD", details: "Details", no_episodes: "Keine Folgen.", n_episodes: "{n} Folgen",
+        import_blocked: "Import blockiert", open_torrent_file: "Datei in MPC-BE öffnen",
+        lowdisk_title: "Wenig Speicherplatz", lowdisk_desc: "Nur noch {free} auf der Medienfestplatte.",
+        alert_episodes_failed: "Folgen konnten nicht geladen werden.",
+    },
+    pt: {
+        opt_anti_spoiler: "Anti-spoiler (desfocar títulos)",
+        all_episodes: "Todos os episódios", season: "Temporada", specials: "Especiais",
+        soon: "EM BREVE", details: "Detalhes", no_episodes: "Sem episódios.", n_episodes: "{n} episódios",
+        import_blocked: "Importação bloqueada", open_torrent_file: "Abrir o arquivo no MPC-BE",
+        lowdisk_title: "Pouco espaço em disco", lowdisk_desc: "Restam apenas {free} no disco de mídia.",
+        alert_episodes_failed: "Falha ao carregar os episódios.",
+    },
+    ru: {
+        opt_anti_spoiler: "Антиспойлер (размыть названия)",
+        all_episodes: "Все эпизоды", season: "Сезон", specials: "Спецвыпуски",
+        soon: "СКОРО", details: "Подробнее", no_episodes: "Нет эпизодов.", n_episodes: "{n} эпизодов",
+        import_blocked: "Импорт заблокирован", open_torrent_file: "Открыть файл в MPC-BE",
+        lowdisk_title: "Мало места на диске", lowdisk_desc: "На медиа-диске осталось всего {free}.",
+        alert_episodes_failed: "Не удалось загрузить эпизоды.",
+    },
+    ja: {
+        opt_anti_spoiler: "ネタバレ防止（タイトルをぼかす）",
+        all_episodes: "全エピソード", season: "シーズン", specials: "スペシャル",
+        soon: "近日", details: "詳細", no_episodes: "エピソードがありません。", n_episodes: "{n} エピソード",
+        import_blocked: "取り込みがブロックされました", open_torrent_file: "MPC-BE でファイルを開く",
+        lowdisk_title: "ディスク空き容量が少ない", lowdisk_desc: "メディアディスクの空きは {free} のみです。",
+        alert_episodes_failed: "エピソードの読み込みに失敗しました。",
+    },
+    ko: {
+        opt_anti_spoiler: "스포일러 방지 (제목 흐림)",
+        all_episodes: "모든 에피소드", season: "시즌", specials: "스페셜",
+        soon: "곧", details: "상세", no_episodes: "에피소드가 없습니다.", n_episodes: "{n}개 에피소드",
+        import_blocked: "가져오기 차단됨", open_torrent_file: "MPC-BE에서 파일 열기",
+        lowdisk_title: "디스크 공간 부족", lowdisk_desc: "미디어 디스크에 {free}만 남았습니다.",
+        alert_episodes_failed: "에피소드를 불러오지 못했습니다.",
+    },
+    zh: {
+        opt_anti_spoiler: "防剧透（模糊标题）",
+        all_episodes: "所有剧集", season: "第", specials: "特别篇",
+        soon: "即将", details: "详情", no_episodes: "没有剧集。", n_episodes: "{n} 集",
+        import_blocked: "导入受阻", open_torrent_file: "在 MPC-BE 中打开文件",
+        lowdisk_title: "磁盘空间不足", lowdisk_desc: "媒体磁盘仅剩 {free}。",
+        alert_episodes_failed: "加载剧集失败。",
+    },
+};
+for (const code in FEATURE_MESSAGES) {
+    if (MESSAGES[code]) Object.assign(MESSAGES[code], FEATURE_MESSAGES[code]);
+}
+
+// Back button label in the Films modal torrent panel (mirrors back_episode).
+const FILM_MESSAGES = {
+    en: { back_film: "Movie info" }, fr: { back_film: "Fiche Film" },
+    es: { back_film: "Ficha película" }, de: { back_film: "Filmdetails" },
+    pt: { back_film: "Ficha do filme" }, ru: { back_film: "О фильме" },
+    ja: { back_film: "映画情報" }, ko: { back_film: "영화 정보" }, zh: { back_film: "影片信息" },
+};
+for (const code in FILM_MESSAGES) {
+    if (MESSAGES[code]) Object.assign(MESSAGES[code], FILM_MESSAGES[code]);
+}
+
+// Modal CTA labels (the two side-by-side buttons).
+const CTA_MESSAGES = {
+    en: { cta_seasons: "Seasons & episodes", cta_torrents: "Torrent search" },
+    fr: { cta_seasons: "Saisons et épisodes", cta_torrents: "Recherche torrents" },
+    es: { cta_seasons: "Temporadas y episodios", cta_torrents: "Buscar torrents" },
+    de: { cta_seasons: "Staffeln & Folgen", cta_torrents: "Torrent-Suche" },
+    pt: { cta_seasons: "Temporadas e episódios", cta_torrents: "Busca de torrents" },
+    ru: { cta_seasons: "Сезоны и эпизоды", cta_torrents: "Поиск торрентов" },
+    ja: { cta_seasons: "シーズンとエピソード", cta_torrents: "トレント検索" },
+    ko: { cta_seasons: "시즌 및 에피소드", cta_torrents: "토렌트 검색" },
+    zh: { cta_seasons: "季与剧集", cta_torrents: "种子搜索" },
+};
+for (const code in CTA_MESSAGES) {
+    if (MESSAGES[code]) Object.assign(MESSAGES[code], CTA_MESSAGES[code]);
+}
+
 window.MESSAGES = MESSAGES;
 window.LANGS = LANGS;
 window.detectLocale = detectLocale;

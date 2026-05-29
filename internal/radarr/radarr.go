@@ -303,15 +303,18 @@ func (c *Client) AddMovie(tmdbID int, o AddOptions) ([]byte, error) {
 
 // Release is a release from the interactive search (same fields as Sonarr).
 type Release struct {
-	GUID      string `json:"guid"`
-	Title     string `json:"title"`
-	Indexer   string `json:"indexer"`
-	IndexerID int    `json:"indexerId"`
-	Protocol  string `json:"protocol"`
-	Size      int64  `json:"size"`
-	Seeders   *int   `json:"seeders"`
-	Age       int    `json:"age"`
-	Quality   struct {
+	GUID       string  `json:"guid"`
+	Title      string  `json:"title"`
+	Indexer    string  `json:"indexer"`
+	IndexerID  int     `json:"indexerId"`
+	Protocol   string  `json:"protocol"`
+	Size       int64   `json:"size"`
+	Seeders    *int    `json:"seeders"`
+	Age        int     `json:"age"`
+	AgeHours   float64 `json:"ageHours"`
+	AgeMinutes float64 `json:"ageMinutes"`
+	InfoURL    string  `json:"infoUrl"`
+	Quality    struct {
 		Quality struct {
 			Name string `json:"name"`
 		} `json:"quality"`

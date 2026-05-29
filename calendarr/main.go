@@ -27,7 +27,6 @@ import (
 	"fyne.io/systray"
 	"github.com/gorilla/websocket"
 
-	"calendarr-local/internal/bazarr"
 	"calendarr-local/internal/desktop"
 	"calendarr-local/internal/discovery"
 	"calendarr-local/internal/prowlarr"
@@ -59,8 +58,6 @@ type config struct {
 	ProwlarrKey string `json:"prowlarrKey"`
 	RadarrURL   string `json:"radarrUrl"`
 	RadarrKey   string `json:"radarrKey"`
-	BazarrURL   string `json:"bazarrUrl"`
-	BazarrKey   string `json:"bazarrKey"`
 }
 
 // Mode values for config.Mode. Kept short so they read naturally inside the
@@ -101,6 +98,7 @@ type queueProg struct {
 	Status   string
 	Percent  int
 	TimeLeft string
+	Message  string // why an import is stuck (failed move/import), when known
 }
 
 type server struct {
@@ -111,7 +109,6 @@ type server struct {
 	qb  *qbit.Client
 	pr  *prowlarr.Client
 	rd  *radarr.Client
-	bz  *bazarr.Client
 
 	shareURL  string // LAN access address to display for sharing (http://PC-NAME:port)
 	sonarrWeb string // Sonarr URL reachable from the LAN (for series links)
@@ -140,8 +137,6 @@ func main() {
 	prowlarrKey := flag.String("prowlarr-key", "", "Prowlarr API key (empty = auto-detect)")
 	radarrURL := flag.String("radarr-url", "", "Radarr URL (empty = auto-detect via config.xml)")
 	radarrKey := flag.String("radarr-key", "", "Radarr API key (empty = auto-detect)")
-	bazarrURL := flag.String("bazarr-url", "", "Bazarr URL (empty = auto-detect via config.ini)")
-	bazarrKey := flag.String("bazarr-key", "", "Bazarr API key (empty = auto-detect)")
 	notray := flag.Bool("notray", false, "do not create a notification-area icon (dev/preview)")
 	dev := flag.Bool("dev", false, "serve web/ from disk (hot-reload the design without rebuilding)")
 	open := flag.Bool("open", false, "open the interface in the browser (used by the desktop shortcut)")
@@ -240,14 +235,6 @@ func main() {
 		log.Printf("Radarr: %s", rd.BaseURL)
 	}
 
-	bz, err := bazarr.New(pick("bazarr-url", *bazarrURL, cfg.BazarrURL), pick("bazarr-key", *bazarrKey, cfg.BazarrKey))
-	if err != nil {
-		log.Printf("Bazarr not detected (Subtitles page unavailable): %v", err)
-		bz = nil
-	} else {
-		log.Printf("Bazarr: %s", bz.BaseURL)
-	}
-
 	// Share address: the Windows PC name (already assigned by the OS) plus the
 	// port. On a LAN, other machines resolve this name on their own
 	// (NetBIOS/mDNS), so the host has nothing to configure, just to share this line.
@@ -281,7 +268,7 @@ func main() {
 		}
 	}
 
-	srv := &server{sc: sc, st: st, loc: loc, hub: newHub(), qb: qb, pr: pr, rd: rd, bz: bz, queue: map[int]queueProg{}, shareURL: shareURL, sonarrWeb: sonarrWeb, radarrWeb: radarrWeb, qbitDet: qbitDet, qbitURL: qbitURLv, cfgPath: cfgPath}
+	srv := &server{sc: sc, st: st, loc: loc, hub: newHub(), qb: qb, pr: pr, rd: rd, queue: map[int]queueProg{}, shareURL: shareURL, sonarrWeb: sonarrWeb, radarrWeb: radarrWeb, qbitDet: qbitDet, qbitURL: qbitURLv, cfgPath: cfgPath}
 
 	if *dev {
 		// Design mode: serve the web/ folder as-is from disk.
@@ -311,6 +298,7 @@ func main() {
 	http.HandleFunc("/api/qbit/connect", srv.handleQbitConnect)
 	http.HandleFunc("/api/torrents/action", srv.handleTorrentAction)
 	http.HandleFunc("/api/series/options", srv.needSonarr(srv.handleSeriesOptions))
+	http.HandleFunc("GET /api/series/{seriesId}/episodes", srv.needSonarr(srv.handleSeriesEpisodes))
 	http.HandleFunc("/api/series/lookup", srv.needSonarr(srv.handleSeriesLookup))
 	http.HandleFunc("/api/series/tag", srv.needSonarr(srv.handleCreateTag))
 	http.HandleFunc("/api/series/add", srv.needSonarr(srv.handleAddSeries))
@@ -320,10 +308,6 @@ func main() {
 	http.HandleFunc("/api/prowlarr/sync", srv.handleProwlarrSync)
 	http.HandleFunc("/api/prowlarr/schema", srv.handleProwlarrSchema)
 	http.HandleFunc("/api/prowlarr/add", srv.handleProwlarrAdd)
-	http.HandleFunc("/api/bazarr/overview", srv.handleBazarrOverview)
-	http.HandleFunc("/api/bazarr/episode/subs", srv.handleBazarrEpisodeSubs)
-	http.HandleFunc("/api/bazarr/episode/search", srv.handleBazarrEpisodeSearch)
-	http.HandleFunc("/api/bazarr/episode/download", srv.handleBazarrEpisodeDownload)
 	http.HandleFunc("/api/films", srv.handleFilms)
 	http.HandleFunc("/api/films/search", srv.handleFilmsSearch)
 	http.HandleFunc("/api/films/grab", srv.handleFilmsGrab)
@@ -331,6 +315,7 @@ func main() {
 	http.HandleFunc("/api/movies/add", srv.handleAddMovie)
 	http.HandleFunc("/api/search/add", srv.handleSearchAdd)
 	http.HandleFunc("GET /play/movie/{movieId}/{name}", srv.handleMoviePlay)
+	http.HandleFunc("GET /play/torrent/{hash}/{name}", srv.handleTorrentPlay)
 	http.HandleFunc("/ws", srv.handleWS)
 	http.HandleFunc("/sonarr/webhook", srv.handleWebhook)
 	http.HandleFunc("/play/file", srv.needSonarr(srv.handlePlayFile))
@@ -507,7 +492,6 @@ func (s *server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"sonarr":   s.sc != nil,
 		"radarr":   s.rd != nil,
 		"prowlarr": s.pr != nil,
-		"bazarr":   s.bz != nil,
 	})
 }
 
@@ -593,6 +577,7 @@ func (s *server) handleCalendar(w http.ResponseWriter, r *http.Request) {
 			ep["downloadStatus"] = p.Status
 			ep["downloadPercent"] = p.Percent
 			ep["downloadTimeleft"] = p.TimeLeft
+			ep["downloadMessage"] = p.Message
 		}
 		days[key] = append(days[key], ep)
 	}
@@ -691,6 +676,8 @@ func (s *server) handleSearch(w http.ResponseWriter, r *http.Request) {
 			"size":       rel.Size,
 			"seeders":    seeders,
 			"age":        rel.Age,
+			"ageHours":   rel.AgeHours,
+			"ageMinutes": rel.AgeMinutes,
 			"quality":    rel.Quality.Quality.Name,
 			"infoUrl":    rel.InfoURL,
 			"rejected":   rel.Rejected,
@@ -806,6 +793,23 @@ func (s *server) saveQbitConfig(url, user, pass string) {
 	}
 }
 
+// handleTorrentPlay serves the main video file of a completed torrent over HTTP
+// (range-enabled via ServeFile), so MPC-BE can play it even if Sonarr never
+// imported/moved it. The path comes straight from qBittorrent.
+func (s *server) handleTorrentPlay(w http.ResponseWriter, r *http.Request) {
+	hash := r.PathValue("hash")
+	if hash == "" {
+		http.Error(w, "invalid hash", http.StatusBadRequest)
+		return
+	}
+	path, err := s.qb.FilePath(hash)
+	if err != nil {
+		http.Error(w, "file not found: "+err.Error(), http.StatusNotFound)
+		return
+	}
+	http.ServeFile(w, r, path)
+}
+
 func (s *server) handleTorrentAction(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST required", http.StatusMethodNotAllowed)
@@ -891,6 +895,51 @@ func (s *server) handleSeriesOptions(w http.ResponseWriter, r *http.Request) {
 		"seriesTypes":     []string{"standard", "anime", "daily"},
 		"monitorOptions":  []string{"all", "future", "missing", "existing", "firstSeason", "latestSeason", "pilot", "none"},
 	})
+}
+
+// handleSeriesEpisodes returns every episode of a series (all seasons) for the
+// modal's "all episodes" panel, with the per-episode watched flag merged in.
+func (s *server) handleSeriesEpisodes(w http.ResponseWriter, r *http.Request) {
+	seriesID := atoiDefault(r.PathValue("seriesId"), 0)
+	if seriesID == 0 {
+		http.Error(w, "seriesId required", http.StatusBadRequest)
+		return
+	}
+	eps, err := s.sc.SeriesEpisodes(seriesID)
+	if err != nil {
+		http.Error(w, "Sonarr: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	watched, err := s.st.WatchedSet()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := make([]map[string]any, 0, len(eps))
+	for _, e := range eps {
+		out = append(out, map[string]any{
+			"episodeId":    e.ID,
+			"season":       e.SeasonNumber,
+			"episode":      e.EpisodeNumber,
+			"episodeTitle": e.Title,
+			"overview":     e.Overview,
+			"runtime":      e.Runtime,
+			"airDateUtc":   e.AirDateUtc,
+			"hasFile":      e.HasFile,
+			"monitored":    e.Monitored,
+			"finaleType":   e.FinaleType,
+			"fileName":     baseName(e.EpisodeFile.Path),
+			"watched":      watched[e.ID],
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		si, sj := out[i]["season"].(int), out[j]["season"].(int)
+		if si != sj {
+			return si < sj
+		}
+		return out[i]["episode"].(int) < out[j]["episode"].(int)
+	})
+	writeJSON(w, map[string]any{"episodes": out})
 }
 
 func (s *server) handleSeriesLookup(w http.ResponseWriter, r *http.Request) {
@@ -1173,138 +1222,6 @@ func (s *server) handleProwlarrToggle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// --- Bazarr ---
-
-// handleBazarrOverview aggregates everything the Subtitles page needs in one
-// shot: missing subs (episodes + movies), recent history, providers status and
-// configured languages. Each sub-call is best-effort: a failure on one section
-// does not blank the rest.
-func (s *server) handleBazarrOverview(w http.ResponseWriter, r *http.Request) {
-	if s.bz == nil {
-		http.Error(w, "Bazarr not configured", http.StatusServiceUnavailable)
-		return
-	}
-	out := map[string]any{}
-	if eps, total, err := s.bz.WantedEpisodes(100); err == nil {
-		out["wantedEpisodes"] = eps
-		out["wantedEpisodesTotal"] = total
-	} else {
-		out["wantedEpisodesError"] = err.Error()
-	}
-	if mvs, total, err := s.bz.WantedMovies(100); err == nil {
-		out["wantedMovies"] = mvs
-		out["wantedMoviesTotal"] = total
-	} else {
-		out["wantedMoviesError"] = err.Error()
-	}
-	if h, err := s.bz.HistoryEpisodes(25); err == nil {
-		out["historyEpisodes"] = h
-	}
-	if h, err := s.bz.HistoryMovies(25); err == nil {
-		out["historyMovies"] = h
-	}
-	if p, err := s.bz.Providers(); err == nil {
-		out["providers"] = p
-	}
-	if l, err := s.bz.Languages(true); err == nil {
-		out["languages"] = l
-	}
-	writeJSON(w, out)
-}
-
-// handleBazarrEpisodeSubs lists subtitle tracks already present on disk for
-// one episode. Fast (single Bazarr call). Used by the modal to show what the
-// user already has before they decide to search for more.
-func (s *server) handleBazarrEpisodeSubs(w http.ResponseWriter, r *http.Request) {
-	if s.bz == nil {
-		http.Error(w, "Bazarr not configured", http.StatusServiceUnavailable)
-		return
-	}
-	seriesID := atoiDefault(r.URL.Query().Get("seriesId"), 0)
-	episodeID := atoiDefault(r.URL.Query().Get("episodeId"), 0)
-	if seriesID == 0 || episodeID == 0 {
-		http.Error(w, "seriesId and episodeId required", http.StatusBadRequest)
-		return
-	}
-	subs, err := s.bz.EpisodeSubtitles(seriesID, episodeID)
-	if err != nil {
-		http.Error(w, "Bazarr: "+err.Error(), http.StatusBadGateway)
-		return
-	}
-	writeJSON(w, map[string]any{"subtitles": subs})
-}
-
-// handleBazarrEpisodeSearch triggers Bazarr's manual subtitle search for one
-// episode. Slow (10-30s, sometimes more): we keep the response open while
-// Bazarr queries every configured provider in parallel.
-func (s *server) handleBazarrEpisodeSearch(w http.ResponseWriter, r *http.Request) {
-	if s.bz == nil {
-		http.Error(w, "Bazarr not configured", http.StatusServiceUnavailable)
-		return
-	}
-	episodeID := atoiDefault(r.URL.Query().Get("episodeId"), 0)
-	if episodeID == 0 {
-		http.Error(w, "episodeId required", http.StatusBadRequest)
-		return
-	}
-	results, err := s.bz.SearchEpisodeSubtitles(episodeID)
-	if err != nil {
-		http.Error(w, "Bazarr: "+err.Error(), http.StatusBadGateway)
-		return
-	}
-	// Echo each result's raw payload back so the client can return it
-	// verbatim in the download call. Bazarr validates against original fields.
-	out := make([]map[string]any, 0, len(results))
-	for _, r := range results {
-		raw := r.Raw
-		if raw == nil {
-			raw = map[string]any{
-				"language":         r.Language,
-				"provider":         r.Provider,
-				"subtitle":         r.Subtitle,
-				"score":            r.Score,
-				"hearing_impaired": r.HearingImpaired,
-				"forced":           r.Forced,
-				"url":              r.URL,
-			}
-		}
-		out = append(out, raw)
-	}
-	writeJSON(w, map[string]any{"results": out})
-}
-
-// handleBazarrEpisodeDownload triggers Bazarr to actually fetch one subtitle
-// and place the file next to the video. Body: {seriesId, episodeId, sub: {...}}
-// where sub is the raw payload from the search response.
-func (s *server) handleBazarrEpisodeDownload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST required", http.StatusMethodNotAllowed)
-		return
-	}
-	if s.bz == nil {
-		http.Error(w, "Bazarr not configured", http.StatusServiceUnavailable)
-		return
-	}
-	var body struct {
-		SeriesID  int            `json:"seriesId"`
-		EpisodeID int            `json:"episodeId"`
-		Sub       map[string]any `json:"sub"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
-		return
-	}
-	if body.SeriesID == 0 || body.EpisodeID == 0 || body.Sub == nil {
-		http.Error(w, "seriesId, episodeId and sub required", http.StatusBadRequest)
-		return
-	}
-	if err := s.bz.DownloadEpisodeSubtitle(body.SeriesID, body.EpisodeID, body.Sub); err != nil {
-		http.Error(w, "Bazarr: "+err.Error(), http.StatusBadGateway)
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true})
-}
-
 // --- Movies (Radarr) ---
 
 func (s *server) handleFilms(w http.ResponseWriter, r *http.Request) {
@@ -1393,7 +1310,8 @@ func (s *server) handleFilmsSearch(w http.ResponseWriter, r *http.Request) {
 		out = append(out, map[string]any{
 			"guid": rel.GUID, "title": rel.Title, "indexer": rel.Indexer, "indexerId": rel.IndexerID,
 			"protocol": rel.Protocol, "size": rel.Size, "seeders": seeders,
-			"age": rel.Age, "quality": rel.Quality.Quality.Name,
+			"age": rel.Age, "ageHours": rel.AgeHours, "ageMinutes": rel.AgeMinutes,
+			"quality": rel.Quality.Quality.Name, "infoUrl": rel.InfoURL,
 			"rejected": rel.Rejected, "rejections": rel.Rejections,
 		})
 	}
@@ -1638,7 +1556,7 @@ func (s *server) pollQueue() {
 		cur := make(map[int]bool, len(items))
 		active := false
 		for _, it := range items {
-			m[it.EpisodeID] = queueProg{Status: it.Status, Percent: it.Percent, TimeLeft: it.TimeLeft}
+			m[it.EpisodeID] = queueProg{Status: it.Status, Percent: it.Percent, TimeLeft: it.TimeLeft, Message: it.Message}
 			cur[it.EpisodeID] = true
 			if it.Status == "downloading" || it.Status == "importing" {
 				active = true
@@ -1668,7 +1586,7 @@ func (s *server) pollQueue() {
 func (s *server) broadcastProgress(m map[int]queueProg) {
 	items := make([]map[string]any, 0, len(m))
 	for id, p := range m {
-		items = append(items, map[string]any{"episodeId": id, "status": p.Status, "percent": p.Percent, "timeleft": p.TimeLeft})
+		items = append(items, map[string]any{"episodeId": id, "status": p.Status, "percent": p.Percent, "timeleft": p.TimeLeft, "message": p.Message})
 	}
 	msg, _ := json.Marshal(map[string]any{"type": "progress", "items": items})
 	s.hub.broadcast(msg)
