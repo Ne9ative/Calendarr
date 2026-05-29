@@ -23,3 +23,6 @@ calendarr.db-wal
 /installer/
 /internal/installer/
 /temp/
+
+# Personal scratch notes (never publish)
+/.Idée.txt
