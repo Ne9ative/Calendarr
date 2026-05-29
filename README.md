@@ -80,7 +80,7 @@ Windows only — it's a system-tray app. Prefer to compile it yourself? See [Bui
 ## Build from source
 
 ```sh
-git clone https://github.com/<you>/calendarr.git
+git clone https://github.com/luan220/calendarr.git
 cd calendarr
 ```
 
