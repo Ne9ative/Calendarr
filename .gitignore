@@ -11,18 +11,3 @@
 /vendor/
 go.work
 go.work.sum
-
-# Local runtime data
-config.json
-calendarr.db
-calendarr.db-shm
-calendarr.db-wal
-*.log
-
-# Private (never publish)
-/installer/
-/internal/installer/
-/temp/
-
-# Personal scratch notes (never publish)
-/.Idée.txt
