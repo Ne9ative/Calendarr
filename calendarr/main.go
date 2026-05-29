@@ -521,7 +521,10 @@ func (s *server) handleCalendar(w http.ResponseWriter, r *http.Request) {
 	from := cursor.AddDate(0, 0, -2).UTC()
 	to := endOfMonth.AddDate(0, 0, 2).UTC()
 
-	eps, err := s.sc.Calendar(from, to)
+	// "watch unmonitored" client setting; absent means on (the default).
+	includeUnmonitored := r.URL.Query().Get("unmonitored") != "false"
+
+	eps, err := s.sc.Calendar(from, to, includeUnmonitored)
 	if err != nil {
 		http.Error(w, "Sonarr: "+err.Error(), http.StatusBadGateway)
 		return
@@ -1314,9 +1317,14 @@ func (s *server) handleFilms(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Radarr: "+err.Error(), http.StatusBadGateway)
 		return
 	}
+	// "watch unmonitored" client setting; absent means on (the default).
+	includeUnmonitored := r.URL.Query().Get("unmonitored") != "false"
 	out := make([]map[string]any, 0, len(movies))
 	available := 0
 	for _, m := range movies {
+		if !includeUnmonitored && !m.Monitored {
+			continue
+		}
 		status := "unmonitored"
 		if m.HasFile {
 			status = "available"

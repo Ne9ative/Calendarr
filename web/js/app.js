@@ -30,6 +30,7 @@ const app = createApp({
             year: 0, month: 0, monthLabel: '',
             today: '', now: Date.now(), prev: {}, next: {},
             disk: null, optsOpen: false, navStuck: false, slideDir: '', autoScroll: localStorage.getItem('autoScroll') !== 'false',
+            watchUnmonitored: localStorage.getItem('watchUnmonitored') !== 'false',
             days: {}, watched: [], stats: { episodes: 0, downloaded: 0, watched: 0 },
             loading: true, share: '', sonarrUrl: '', shareOpen: false,
             selected: null, searching: false, releases: null, grabbed: {},
@@ -228,6 +229,11 @@ const app = createApp({
             return gb >= 1024 ? (gb / 1024).toFixed(2) + ' To' : gb.toFixed(1) + ' Go';
         },
         saveAutoScroll() { localStorage.setItem('autoScroll', this.autoScroll); if (this.autoScroll) this.scrollToToday(); },
+        saveWatchUnmonitored() {
+            localStorage.setItem('watchUnmonitored', this.watchUnmonitored);
+            this.load(this.year, this.month, false);
+            if (this.view === 'films') this.loadFilms();
+        },
         onScroll() {
             const ph = document.querySelector('.cal-head');
             this.navStuck = ph ? ph.getBoundingClientRect().top <= 66 : false;
@@ -665,8 +671,8 @@ const app = createApp({
             if (!this.services.sonarr) { this.loading = false; return; }
             const oldKey = this.year * 12 + this.month;
             this.loading = true;
-            const query = (y && m) ? `?year=${y}&month=${m}` : '';
-            const r = await fetch('/api/calendar' + query);
+            const base = (y && m) ? `?year=${y}&month=${m}&` : '?';
+            const r = await fetch(`/api/calendar${base}unmonitored=${this.watchUnmonitored}`);
             Object.assign(this, await r.json());
             const newKey = this.year * 12 + this.month;
             if (oldKey && newKey !== oldKey) this.slideDir = newKey > oldKey ? 'next' : 'prev';
@@ -718,7 +724,7 @@ const app = createApp({
             if (!this.services.radarr) { this.films = []; return; }
             this.filmsLoading = true; this.filmsError = '';
             try {
-                const r = await fetch('/api/films');
+                const r = await fetch('/api/films?unmonitored=' + this.watchUnmonitored);
                 if (!r.ok) { this.filmsError = (await r.text()) || this.t('radarr_unreachable'); this.films = []; }
                 else { const d = await r.json(); this.films = d.movies || []; this.radarrUrl = d.radarrUrl || ''; }
             } catch (e) { this.filmsError = String(e); this.films = []; }
@@ -798,7 +804,7 @@ const app = createApp({
     template: `
     <header class="topbar">
         <div class="brand-group">
-            <img src="/logo.png" class="brand-logo" alt="Calendarr" @click="goHome" :title="t('nav_calendar')">
+            <img src="/img/logo.png" class="brand-logo" alt="Calendarr" @click="goHome" :title="t('nav_calendar')">
             <nav class="tabs">
                 <a v-for="tab in tabs" :key="tab.id" class="tab" :class="{ active: view === tab.id }"
                    href="#" @click.prevent="goTab(tab.id)">{{ t(tab.key) }}</a>
@@ -845,6 +851,10 @@ const app = createApp({
                         <label class="opts-row">
                             <span>{{ t('opt_autoscroll') }}</span>
                             <input type="checkbox" class="opts-toggle" v-model="autoScroll" @change="saveAutoScroll">
+                        </label>
+                        <label class="opts-row">
+                            <span>{{ t('opt_watch_unmonitored') }}</span>
+                            <input type="checkbox" class="opts-toggle" v-model="watchUnmonitored" @change="saveWatchUnmonitored">
                         </label>
                         <label class="opts-row">
                             <span>{{ t('opt_language') }}</span>

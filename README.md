@@ -101,16 +101,16 @@ The release binary targets **x86-64-v3** CPUs (Intel Haswell 2013+ / AMD Excavat
 **Quick dev build** — no mingw needed, keeps a console for logs:
 
 ```sh
-go build -o calendarr.exe ./cmd/server
+go build -o calendarr.exe ./calendarr
 ```
 
 Add `-ldflags "-H=windowsgui"` to hide the console (the tray-only mode `build.ps1` ships), or run with `-notray -dev` to live-reload the `web/` UI without rebuilding.
 
-Version info, icon, and Windows manifest are embedded via the committed `cmd/server/rsrc.syso`. To regenerate it after bumping the version in `cmd/server/versioninfo.json`:
+Version info, icon, and Windows manifest are embedded via the committed `calendarr/rsrc.syso`. To regenerate it after bumping the version in `calendarr/versioninfo.json`:
 
 ```sh
 go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-go generate ./cmd/server
+go generate ./calendarr
 ```
 
 ## Running it

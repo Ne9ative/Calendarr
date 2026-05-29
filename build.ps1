@@ -33,7 +33,7 @@ $env:GOAMD64 = "v3"
 Write-Host "Building bin\calendarr.exe (CGO, static, x86-64-v3)..." -ForegroundColor Cyan
 go build -trimpath -buildvcs=true `
     -ldflags "-H=windowsgui -s -w -linkmode=external -extldflags=-static" `
-    -o bin\calendarr.exe .\cmd\server
+    -o bin\calendarr.exe .\calendarr
 
 if ($LASTEXITCODE -eq 0) {
     $exe = Get-Item bin\calendarr.exe

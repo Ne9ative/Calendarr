@@ -167,8 +167,10 @@ func (e Episode) Banner() string {
 	return poster
 }
 
-// Calendar retrieves the episodes airing between start and end.
-func (c *Client) Calendar(start, end time.Time) ([]Episode, error) {
+// Calendar retrieves the episodes airing between start and end. When
+// includeUnmonitored is true, episodes Sonarr isn't tracking are returned as
+// well, so the whole series shows up and not just the monitored parts.
+func (c *Client) Calendar(start, end time.Time, includeUnmonitored bool) ([]Episode, error) {
 	u, err := url.Parse(c.BaseURL + "/api/v3/calendar")
 	if err != nil {
 		return nil, fmt.Errorf("invalid Sonarr URL: %w", err)
@@ -176,6 +178,9 @@ func (c *Client) Calendar(start, end time.Time) ([]Episode, error) {
 	q := u.Query()
 	q.Set("start", start.UTC().Format("2006-01-02"))
 	q.Set("end", end.UTC().Format("2006-01-02"))
+	if includeUnmonitored {
+		q.Set("unmonitored", "true")
+	}
 	q.Set("includeSeries", "true")
 	q.Set("includeEpisodeFile", "true")
 	u.RawQuery = q.Encode()
