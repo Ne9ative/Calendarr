@@ -73,7 +73,7 @@ flowchart LR
 
 ## Download
 
-Grab the prebuilt **`calendarr.exe`** from the **[latest release](https://github.com/luan220/Calendarr/releases/latest)** — one file, no Go toolchain, no build step. Same binary on every machine; pick its mode the first time you run it via the tray menu (right-click → **Mode: Server** or **Mode: Client**).
+Grab the prebuilt **`calendarr.exe`** from the **[latest release](https://github.com/ne9ative/Calendarr/releases/latest)** — one file, no Go toolchain, no build step. Same binary on every machine; pick its mode the first time you run it via the tray menu (right-click → **Mode: Server** or **Mode: Client**).
 
 Windows only — it's a system-tray app. Prefer to compile it yourself? See [Build from source](#build-from-source).
 
